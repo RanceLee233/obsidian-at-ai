@@ -19,10 +19,10 @@ export class TemplateLoader {
   private initBuiltinTemplates(): void {
     const builtinTemplates: Template[] = [
       {
-        id: 'polish.cn',
+        id: 'polish',
         title: '中文润色',
         description: '优化表达与结构，保留术语与格式',
-        category: 'rewrite',
+        category: 'featured',
         featured: true,
         content: `目标：在不改变事实与语义的前提下，优化以下中文内容的表达与结构。
 - 保留 Markdown、链接与代码块；不新增事实
@@ -32,10 +32,10 @@ export class TemplateLoader {
 {{context}}`
       },
       {
-        id: 'continue.cn',
+        id: 'continue',
         title: '自然续写',
         description: '承接原文语气与节奏继续写作',
-        category: 'continue',
+        category: 'featured',
         featured: true,
         content: `请以与原文相同的语气与节奏，续写约300字的自然段。
 - 连贯承接，不另起新话题；避免复述已有内容
@@ -44,10 +44,10 @@ export class TemplateLoader {
 {{context}}`
       },
       {
-        id: 'summarize.cn',
+        id: 'summarize',
         title: '要点总结',
         description: '提炼关键要点，保留重要数据',
-        category: 'summarize',
+        category: 'featured',
         featured: true,
         content: `基于以下内容提炼5条要点：
 - 每条≤30字；保留关键数据；未知写"（不确定）"
@@ -56,10 +56,10 @@ export class TemplateLoader {
 {{context}}`
       },
       {
-        id: 'translate.cn',
+        id: 'translate',
         title: '中英互译',
         description: '准确翻译并提供双语对照',
-        category: 'translate',
+        category: 'featured',
         featured: true,
         content: `将以下内容翻译为英文，输出双语对照表格：
 
@@ -70,10 +70,11 @@ export class TemplateLoader {
 {{context}}`
       },
       {
-        id: 'explain.code',
+        id: 'explain',
         title: '代码解释',
         description: '解释代码功能和实现逻辑',
-        category: 'code',
+        category: 'featured',
+        featured: true,
         content: `请解释以下代码的功能和实现逻辑：
 - 主要功能是什么
 - 关键算法或逻辑
@@ -108,23 +109,27 @@ export class TemplateLoader {
     try {
       const folder = this.app.vault.getAbstractFileByPath(this.templateFolder);
       if (!folder) {
+        // 文件夹不存在，创建文件夹和默认文件
         await this.app.vault.createFolder(this.templateFolder);
-        // 即使刚创建，也先写入默认模板
         await this.createDefaultTemplateFiles();
         await this.loadUserTemplates();
         return;
       }
 
-      // 总是补齐缺省模板（不会覆盖已有文件）
-      await this.createDefaultTemplateFiles();
+      // 检查文件夹是否为空
+      const files = this.app.vault.getFiles().filter(file => 
+        file.path.startsWith(this.templateFolder) && 
+        file.extension === 'md'
+      );
+      
+      if (files.length === 0) {
+        // 文件夹为空，创建默认文件
+        await this.createDefaultTemplateFiles();
+      }
+      
       // 加载用户模板（仅以文件夹内容为准）
       await this.loadUserTemplates();
-      // 若依然为空（极端情况），退回到内置模板以保证可用
-      if (this.templates.size === 0) {
-        for (const [id, template] of this.builtinTemplates) {
-          this.templates.set(id, { ...template });
-        }
-      }
+      
     } catch (error) {
       console.error('Failed to load templates:', error);
       // 失败时至少提供内置模板以保底
@@ -141,19 +146,19 @@ export class TemplateLoader {
     const files: { name: string; content: string }[] = [
       {
         name: 'summarize.md',
-        content: `# 总结要点\n\n基于以下内容提炼5条要点：每条不超过30字，保留关键数据。\n\n【原文】\n{{context}}`
+        content: `基于以下内容提炼5条要点：每条不超过30字，保留关键数据。\n\n【原文】\n{{context}}`
       },
       {
         name: 'polish.md',
-        content: `# 中文润色\n\n在不改变事实与语义的前提下，优化表达与结构，保留 Markdown、链接与代码块。\n\n【原文】\n{{context}}`
+        content: `在不改变事实与语义的前提下，优化表达与结构，保留 Markdown、链接与代码块。\n\n【原文】\n{{context}}`
       },
       {
         name: 'translate.md',
-        content: `# 中英互译\n\n将以下内容翻译为英文，输出为双语对照：\n\n【原文】\n{{context}}`
+        content: `将以下内容翻译为英文，输出为双语对照：\n\n【原文】\n{{context}}`
       },
       {
         name: 'example.md',
-        content: `# example\n\n这是一个自定义模板示例。\n\n- 变量 {{context}}: 若选中文本则为所选内容，否则为当前文件全文。\n- 你可以在此文件中直接编写提示词正文，无需 YAML。\n- 文件第一行的一级标题将作为菜单显示名称。\n\n【输入】\n{{context}}\n\n【处理说明】\n请根据上述内容进行处理...`
+        content: `这是一个自定义模板示例。\n\n- 变量 {{context}}: 若选中文本则为所选内容，否则为当前文件全文。\n- 你可以在此文件中直接编写提示词正文，无需 YAML。\n- 文件名即为显示名称。\n\n【输入】\n{{context}}\n\n【处理说明】\n请根据上述内容进行处理...`
       }
     ];
 
@@ -201,14 +206,9 @@ export class TemplateLoader {
     const frontmatterMatch = content.match(/^---\n(.*?)\n---\n([\s\S]*)$/);
     
     if (!frontmatterMatch) {
-      // 无 YAML：尝试首行一级标题作为标题
-      const lines = content.split(/\r?\n/);
-      let title = file.basename;
-      let body = content.trim();
-      if (lines[0]?.startsWith('# ')) {
-        title = lines[0].replace(/^#\s+/, '').trim();
-        body = lines.slice(1).join('\n').trim();
-      }
+      // 无 YAML：使用文件名作为标题（去掉.md后缀）
+      const title = file.basename;
+      const body = content.trim();
       const id = file.basename;
       return { id, title, category: 'other', content: body, sourcePath: file.path };
     }

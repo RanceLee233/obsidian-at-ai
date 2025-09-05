@@ -108,13 +108,7 @@ export class AtAIModal extends Modal {
     
     const categories = [
       { id: 'chat', name: '对话' },
-      { id: 'featured', name: t('category.featured') },
-      { id: 'rewrite', name: t('category.rewrite') },
-      { id: 'continue', name: t('category.continue') },
-      { id: 'summarize', name: t('category.summarize') },
-      { id: 'translate', name: t('category.translate') },
-      { id: 'code', name: t('category.code') },
-      { id: 'other', name: t('category.other') }
+      { id: 'featured', name: '常用' }
     ];
 
     for (const category of categories) {
@@ -189,31 +183,34 @@ export class AtAIModal extends Modal {
   }
 
   private renderChatPanel(container: HTMLElement) {
-    // 历史
+    // 历史消息区域
     const historyEl = container.createEl('div', { cls: 'chat-history' });
-    // 折叠原文
-    const context = this.context.selectedText || this.context.fullText || '';
-    const ctxDetails = container.createEl('details');
-    const sum = ctxDetails.createEl('summary');
-    sum.textContent = `原文（${context.length} 字）`;
-    const ctxPre = ctxDetails.createEl('pre');
-    ctxPre.textContent = context.slice(0, 4000); // 避免超长
+    
     if (this.chatMessages.length === 0) {
-      historyEl.createEl('div', { cls: 'empty-message', text: '与AI基于本文对话。输入问题并发送。' });
+      historyEl.createEl('div', { cls: 'empty-message', text: '开始与AI对话' });
     } else {
       this.chatMessages.forEach(msg => {
-        const block = historyEl.createEl('div', { cls: 'template-card' });
-        block.createEl('div', { cls: 'template-title', text: msg.role === 'user' ? '你' : 'AI' });
-        block.createEl('div', { cls: 'template-description', text: msg.content });
+        const msgEl = historyEl.createEl('div', { 
+          cls: `chat-message ${msg.role === 'user' ? 'user-message' : 'ai-message'}` 
+        });
+        
+        const avatarEl = msgEl.createEl('div', { cls: 'message-avatar' });
+        avatarEl.textContent = msg.role === 'user' ? '你' : 'AI';
+        
+        const contentEl = msgEl.createEl('div', { cls: 'message-content' });
+        const bubble = contentEl.createEl('div', { cls: 'message-bubble' });
+        bubble.textContent = msg.content;
       });
     }
 
-    // 输入框
-    const inputWrap = container.createEl('div', { cls: 'search-container' });
-    const textarea = inputWrap.createEl('textarea', { cls: 'search-input' }) as HTMLTextAreaElement;
-    textarea.placeholder = '输入要讨论的问题...';
-
-    const sendBtn = inputWrap.createEl('button', { cls: 'mod-cta', text: '发送' });
+    // 输入区域
+    const inputWrap = container.createEl('div', { cls: 'chat-input-container' });
+    const textarea = inputWrap.createEl('textarea', { 
+      cls: 'chat-input',
+      placeholder: '输入要讨论的问题...'
+    }) as HTMLTextAreaElement;
+    
+    const sendBtn = inputWrap.createEl('button', { cls: 'chat-send-btn', text: '发送' });
     const send = async () => {
       const question = (textarea.value || '').trim();
       if (!question) return;
@@ -224,7 +221,8 @@ export class AtAIModal extends Modal {
       this.renderChatPanel(container);
 
       // 组装 prompt 并调用
-      const chatPrompt = `基于以下内容回答用户问题。若问题与内容无关，也应尽量参考原文再作答。\n\n【内容】\n${context}\n\n【用户】\n${question}`;
+      const contextText = this.context.selectedText || this.context.fullText || '';
+      const chatPrompt = `基于以下内容回答用户问题。若问题与内容无关，也应尽量参考原文再作答。\n\n【内容】\n${contextText}\n\n【用户】\n${question}`;
       // 使用内联提示词
       this.selectedTemplate = { id: '__inline__', title: '对话', category: 'other', content: chatPrompt } as any;
       await this.executeTemplate(true);
@@ -244,8 +242,34 @@ export class AtAIModal extends Modal {
       cls: `template-card ${this.selectedTemplate?.id === template.id ? 'selected' : ''}`
     });
 
-    // 标题和描述
-    const titleEl = cardEl.createEl('div', { cls: 'template-title', text: template.title });
+    // 标题行：包含标题和展开按钮
+    const titleRow = cardEl.createEl('div', { cls: 'template-title-row' });
+    const titleEl = titleRow.createEl('div', { cls: 'template-title', text: template.title });
+    
+    // 显示提示词按钮
+    const toggleBtn = titleRow.createEl('button', { 
+      cls: 'template-toggle-btn',
+      text: '显示提示词'
+    });
+    
+    // 提示词内容区域（初始隐藏）
+    const promptEl = cardEl.createEl('div', { cls: 'template-prompt-content' });
+    const promptPre = promptEl.createEl('pre');
+    promptPre.textContent = template.content || '';
+    promptEl.style.display = 'none';
+    
+    // 切换显示/隐藏提示词
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // 防止触发卡片点击
+      if (promptEl.style.display === 'none') {
+        promptEl.style.display = 'block';
+        toggleBtn.textContent = '隐藏提示词';
+      } else {
+        promptEl.style.display = 'none';
+        toggleBtn.textContent = '显示提示词';
+      }
+    });
+    
     if (template.description) {
       const descEl = cardEl.createEl('div', { cls: 'template-description', text: template.description });
     }
@@ -258,8 +282,11 @@ export class AtAIModal extends Modal {
       }
     }
 
-    // 点击即执行
-    cardEl.addEventListener('click', () => {
+    // 点击卡片执行（避开按钮区域）
+    cardEl.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).classList.contains('template-toggle-btn')) {
+        return;
+      }
       this.selectedTemplate = template;
       this.executeTemplate();
     });
@@ -360,17 +387,20 @@ export class AtAIModal extends Modal {
     }
 
     try {
-      // 准备并显示提示词
+      // 准备提示词
       this.lastPrompt = isInline ? (this.selectedTemplate.content || '') : this.templateLoader.renderTemplate(this.selectedTemplate, this.context);
-      // 显示执行中
+      
+      // 显示执行状态
       if (this.outputEl) {
         this.outputEl.empty();
-        const sent = this.outputEl.createEl('div', { cls: 'ai-output-section' });
-        sent.createEl('div', { text: '发送的提示词：', cls: 'template-title' });
-        const sentPre = sent.createEl('pre');
-        sentPre.textContent = this.lastPrompt;
-        const running = this.outputEl.createEl('pre');
-        running.textContent = '执行中...';
+        
+        // 状态栏
+        const statusBar = this.outputEl.createEl('div', { cls: 'ai-status-bar' });
+        const statusIcon = statusBar.createEl('span', { cls: 'status-icon loading' });
+        const statusText = statusBar.createEl('span', { cls: 'status-text', text: '正在执行...' });
+        
+        // 结果区域（初始为空）
+        const resultContainer = this.outputEl.createEl('div', { cls: 'ai-result-container' });
       }
       // 确定输出模式
       const outputMode = this.context.selectedText ? 'replace' : 'insert';
@@ -378,18 +408,55 @@ export class AtAIModal extends Modal {
       const selectedModel = this.configuredModels.find(m => m.id === this.selectedModelId || '');
       const result = await this.onExecute(this.selectedTemplate.id, provider, { ...this.context, selectedModel, inlinePrompt: isInline ? this.lastPrompt : undefined } as any, outputMode);
       this.lastOutput = result || '';
+      
       if (this.outputEl) {
-        const resultBlock = this.outputEl.createEl('div', { cls: 'ai-output-section' });
-        resultBlock.createEl('div', { text: 'AI 返回：', cls: 'template-title' });
-        const pre = resultBlock.createEl('pre');
-        pre.textContent = this.lastOutput || '(无输出)';
+        // 更新状态栏
+        const statusBar = this.outputEl.querySelector('.ai-status-bar');
+        if (statusBar) {
+          const statusIcon = statusBar.querySelector('.status-icon');
+          const statusText = statusBar.querySelector('.status-text');
+          if (statusIcon) {
+            statusIcon.className = 'status-icon success';
+          }
+          if (statusText) {
+            statusText.textContent = '执行成功';
+          }
+        }
+        
+        // 显示结果
+        const resultContainer = this.outputEl.querySelector('.ai-result-container');
+        if (resultContainer) {
+          resultContainer.empty();
+          const pre = resultContainer.createEl('pre', { cls: 'ai-result-content' });
+          pre.textContent = this.lastOutput || '(无输出)';
+        }
       }
     } catch (error: any) {
       console.error('Failed to execute template:', error);
       if (this.outputEl) {
-        this.outputEl.empty();
-        const pre = this.outputEl.createEl('pre');
-        pre.textContent = `请求失败：${error?.message || error}`;
+        // 更新状态栏显示错误
+        const statusBar = this.outputEl.querySelector('.ai-status-bar');
+        if (!statusBar) {
+          this.outputEl.empty();
+          const newStatusBar = this.outputEl.createEl('div', { cls: 'ai-status-bar' });
+          newStatusBar.createEl('span', { cls: 'status-icon error' });
+          newStatusBar.createEl('span', { cls: 'status-text', text: `请求失败：${error?.message || error}` });
+        } else {
+          const statusIcon = statusBar.querySelector('.status-icon');
+          const statusText = statusBar.querySelector('.status-text');
+          if (statusIcon) {
+            statusIcon.className = 'status-icon error';
+          }
+          if (statusText) {
+            statusText.textContent = `请求失败：${error?.message || error}`;
+          }
+        }
+        
+        // 清空结果区域
+        const resultContainer = this.outputEl.querySelector('.ai-result-container');
+        if (resultContainer) {
+          resultContainer.empty();
+        }
       }
     }
   }

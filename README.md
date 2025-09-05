@@ -272,6 +272,6 @@ MIT 许可证 - 详情请见 LICENSE 文件。
 
 ---
 
-**Repository**: [obsidian-at-ai](https://github.com/yourusername/obsidian-at-ai)
+**Repository**: [obsidian-at-ai](https://github.com/RanceLee233/obsidian-at-ai)
 
-**Issues & Support**: [GitHub Issues](https://github.com/yourusername/obsidian-at-ai/issues)
+**Issues & Support**: [GitHub Issues](https://github.com/RanceLee233/obsidian-at-ai/issues)
