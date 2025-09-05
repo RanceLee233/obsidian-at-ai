@@ -5,7 +5,7 @@
   "minAppVersion": "1.9.0",
   "description": "Intelligent AI assistant that triggers with custom keywords like @ai. Supports multiple AI providers and template-based prompts.",
   "author": "RanceLee233",
-  "authorUrl": "https://github.com/RanceLee233/obsidian-at-ai",
+  "authorUrl": "https://github.com/RanceLee233",
   "fundingUrl": "https://github.com/RanceLee233/obsidian-at-ai",
   "isDesktopOnly": false
 }
