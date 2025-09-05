@@ -145,6 +145,12 @@ Contributions are welcome! Please feel free to:
 - Submit pull requests
 - Improve documentation
 
+### Author
+
+Created by RanceLee233  
+Blog: [https://blog.discoverlabs.ac.cn/](https://blog.discoverlabs.ac.cn/)  
+GitHub: [https://github.com/RanceLee233](https://github.com/RanceLee233)
+
 ### License
 
 MIT License - see LICENSE file for details.
@@ -291,6 +297,12 @@ temperature: 0.3
 - 建议新功能
 - 提交拉取请求
 - 改进文档
+
+### 作者
+
+作者：RanceLee233  
+博客：[https://blog.discoverlabs.ac.cn/](https://blog.discoverlabs.ac.cn/)  
+GitHub：[https://github.com/RanceLee233](https://github.com/RanceLee233)
 
 ### 许可证
 
