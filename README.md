@@ -21,17 +21,20 @@
 
 ### Supported AI Providers
 
-- **OpenAI** - GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo
-- **Anthropic** - Claude 3.5 Sonnet, Claude 3 Haiku
+- **OpenAI** - GPT-5, GPT-5 Mini, GPT-4o, GPT-4 Turbo
+- **Anthropic** - Claude Opus 4.1, Claude Sonnet 4, Claude 3.5 Sonnet, Claude 3.5 Haiku
 - **OpenRouter** - Access to multiple models through one API
-- **DeepSeek** - DeepSeek Chat, DeepSeek Coder
+- **DeepSeek** - DeepSeek V3.1 (685B params), DeepSeek Chat, DeepSeek Coder
 - **Kimi (Moonshot)** - Moonshot v1 models with different context lengths
 - **GLM (智谱)** - GLM-4, GLM-4 Plus, GLM-3 Turbo
 - **Custom Providers** - Add any OpenAI-compatible API
 
 ### Installation
 
-#### Method 1: Community Plugin (Recommended)
+#### Method 1: Community Plugin (Coming Soon)
+> ⚠️ **Note**: The plugin is currently pending review for the Obsidian Community Plugin Store. For now, please use Method 2 or Method 3 below.
+
+Once approved (typically 1-2 weeks):
 1. Open Obsidian Settings
 2. Go to Community Plugins and turn off Restricted Mode
 3. Search for "@AI" and install
@@ -77,12 +80,22 @@ Each provider requires:
 
 ### Template Example
 
+Templates can be created with or without YAML frontmatter:
+
+**Simple Template (filename as title):**
+```markdown
+Please improve the following text:
+
+{{context}}
+```
+
+**Advanced Template (with metadata):**
 ```markdown
 ---
-id: polish.en
+id: polish
 title: Polish Text
 description: Improve writing while preserving meaning
-category: rewrite
+category: featured
 featured: true
 tags: [editing, improvement]
 temperature: 0.3
@@ -155,17 +168,20 @@ MIT License - see LICENSE file for details.
 
 ### 支持的 AI 提供商
 
-- **OpenAI** - GPT-4o、GPT-4 Turbo、GPT-3.5 Turbo
-- **Anthropic** - Claude 3.5 Sonnet、Claude 3 Haiku
+- **OpenAI** - GPT-5、GPT-5 Mini、GPT-4o、GPT-4 Turbo
+- **Anthropic** - Claude Opus 4.1、Claude Sonnet 4、Claude 3.5 Sonnet、Claude 3.5 Haiku
 - **OpenRouter** - 通过一个 API 访问多种模型
-- **DeepSeek** - DeepSeek Chat、DeepSeek Coder
+- **DeepSeek** - DeepSeek V3.1 (685B参数)、DeepSeek Chat、DeepSeek Coder
 - **Kimi (月之暗面)** - 支持不同上下文长度的 Moonshot v1 模型
 - **GLM (智谱)** - GLM-4、GLM-4 Plus、GLM-3 Turbo
 - **自定义提供商** - 添加任何兼容 OpenAI 的 API
 
 ### 安装方法
 
-#### 方法一：社区插件（推荐）
+#### 方法一：社区插件（即将推出）
+> ⚠️ **注意**：插件目前正在等待 Obsidian 社区插件商店审核。现在请使用方法二或方法三。
+
+审核通过后（通常需要 1-2 周）：
 1. 打开 Obsidian 设置
 2. 前往社区插件并关闭受限模式
 3. 搜索 "@AI" 并安装
@@ -211,12 +227,22 @@ MIT License - see LICENSE file for details.
 
 ### 模板示例
 
+模板可以带或不带 YAML 前置数据：
+
+**简单模板（文件名作为标题）：**
+```markdown
+请优化以下内容的表达：
+
+{{context}}
+```
+
+**高级模板（带元数据）：**
 ```markdown
 ---
-id: polish.cn
+id: polish
 title: 中文润色
 description: 优化表达与结构，保留术语与格式
-category: rewrite
+category: featured
 featured: true
 tags: [润色, 改写]
 temperature: 0.3
