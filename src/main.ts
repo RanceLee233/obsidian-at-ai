@@ -70,10 +70,11 @@ export default class AtAIPlugin extends Plugin {
     // 使用更可靠的编辑器事件监听
     this.registerEvent(
       this.app.workspace.on('editor-change', (editor: Editor) => {
-        // 检查最后输入的字符是否为空格
+        // 更稳健的检测：最后字符为空格或换行都尝试触发
         const cursor = editor.getCursor();
         const line = editor.getLine(cursor.line);
-        if (cursor.ch > 0 && line.charAt(cursor.ch - 1) === ' ') {
+        const prevChar = cursor.ch > 0 ? line.charAt(cursor.ch - 1) : '';
+        if (prevChar === ' ' || prevChar === '\u00A0') {
           this.triggerManager.handleEditorChange(editor);
         }
       })
@@ -81,7 +82,8 @@ export default class AtAIPlugin extends Plugin {
     
     // 备用方案：键盘事件监听
     this.registerDomEvent(document, 'keyup', (event: KeyboardEvent) => {
-      if (event.key === ' ') {
+      const isSpace = event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space';
+      if (isSpace) {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (view && view.editor) {
           console.log('Space key detected, checking trigger...');
@@ -147,10 +149,12 @@ export default class AtAIPlugin extends Plugin {
       // 获取处理上下文
       const context = this.getProcessContext(editor);
       
-      // 检查是否有可用的AI提供商
+      // 检查是否可用：提供商或“已配置模型”任一存在即可
       const availableProviders = this.aiProviderManager.getAvailableProviders();
-      if (availableProviders.length === 0) {
-        this.showNotice('No AI providers configured. Please check settings.', 'error');
+      const ext = this.settings as ExtendedPluginSettings;
+      const hasModels = (ext.models && ext.models.filter(m => m.enabled).length > 0) || false;
+      if (availableProviders.length === 0 && !hasModels) {
+        this.showNotice('No AI models/providers configured. Please add a model in settings.', 'error');
         return;
       }
 
@@ -161,7 +165,10 @@ export default class AtAIPlugin extends Plugin {
         this.aiProviderManager,
         context,
         this.settings,
-        this.processTemplate.bind(this)
+        // 生成与应用分离：先生成，用户确认后再应用
+        async (templateId, provider, context, outputMode) => {
+          return await this.processTemplate(templateId, provider, context as any, outputMode);
+        }
       );
       
       modal.open();
@@ -208,24 +215,23 @@ export default class AtAIPlugin extends Plugin {
   async processTemplate(
     templateId: string,
     modelProvider: string,
-    context: ProcessContext,
+    context: ProcessContext & { selectedModel?: import('./types').AIModelConfig, inlinePrompt?: string },
     outputMode: 'replace' | 'insert' = 'replace'
-  ): Promise<void> {
+  ): Promise<string> {
     if (this.isProcessing) {
-      return;
+      return '';
     }
 
     this.isProcessing = true;
 
     try {
-      // 获取模板
-      const template = this.templateLoader.getTemplate(templateId);
-      if (!template) {
-        throw new Error(`Template ${templateId} not found`);
+      // 解析模板/内联提示词
+      let prompt = context.inlinePrompt;
+      const tpl = this.templateLoader.getTemplate(templateId);
+      if (!prompt) {
+        if (!tpl) throw new Error(`Template ${templateId} not found`);
+        prompt = this.templateLoader.renderTemplate(tpl, context);
       }
-
-      // 渲染模板
-      const prompt = this.templateLoader.renderTemplate(template, context);
 
       // 准备AI请求
       const messages = [
@@ -235,40 +241,42 @@ export default class AtAIPlugin extends Plugin {
 
       const request = {
         messages,
-        model: template.model || 'gpt-3.5-turbo',
-        temperature: template.temperature,
-        maxTokens: template.maxTokens
+        // 若用户在“模型管理器”里选择了模型，则优先使用该模型ID
+        model: context.selectedModel?.modelId || tpl?.model || 'gpt-3.5-turbo',
+        temperature: tpl?.temperature,
+        maxTokens: tpl?.maxTokens
       };
 
       // 发送AI请求
       this.showNotice('Processing...', 'info');
-      const response = await this.aiProviderManager.sendRequest(modelProvider, request);
-
-      // 写入结果
-      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-      if (view) {
-        const editor = view.editor;
-        
-        if (outputMode === 'replace' && context.selectedText) {
-          // 替换选中文本
-          editor.replaceSelection(response.content);
-        } else {
-          // 在当前位置插入
-          const cursor = editor.getCursor();
-          editor.replaceRange(
-            '\n\n' + response.content,
-            cursor
-          );
-        }
+      let response;
+      if ((context as any).selectedModel) {
+        response = await this.aiProviderManager.sendRequestWithModel((context as any).selectedModel, request);
+      } else {
+        response = await this.aiProviderManager.sendRequest(modelProvider, request);
       }
 
-      this.showNotice('AI processing completed', 'success');
-
+      // 返回给调用方预览，由调用方决定是否插入
+      this.showNotice('AI processing completed (preview ready)', 'success');
+      return response.content;
     } catch (error: any) {
       console.error('Failed to process template:', error);
       this.showNotice(`AI processing failed: ${error.message}`, 'error');
+      throw error;
     } finally {
       this.isProcessing = false;
+    }
+  }
+
+  /** 将结果应用到编辑器 */
+  async applyResult(editor: Editor, content: string, outputMode: 'replace' | 'insert') {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view) return;
+    if (outputMode === 'replace' && editor.getSelection()) {
+      editor.replaceSelection(content);
+    } else {
+      const cursor = editor.getCursor();
+      editor.replaceRange('\n\n' + content, cursor);
     }
   }
 

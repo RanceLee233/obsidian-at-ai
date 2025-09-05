@@ -1,7 +1,7 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal, Setting, MarkdownView } from 'obsidian';
 import { TemplateLoader } from '../templates/TemplateLoader';
 import { AIProviderManager } from '../ai/AIProviderManager';
-import { ProcessContext, PluginSettings, Template } from '../types';
+import { ProcessContext, PluginSettings, Template, AIModelConfig, ExtendedPluginSettings } from '../types';
 import { t } from '../i18n';
 
 export class AtAIModal extends Modal {
@@ -9,11 +9,17 @@ export class AtAIModal extends Modal {
   private aiProviderManager: AIProviderManager;
   private context: ProcessContext;
   private settings: PluginSettings;
-  private onExecute: (templateId: string, modelProvider: string, context: ProcessContext, outputMode: 'replace' | 'insert') => Promise<void>;
+  private onExecute: (templateId: string, modelProvider: string, context: ProcessContext & { selectedModel?: AIModelConfig }, outputMode: 'replace' | 'insert') => Promise<string>;
+  private outputEl: HTMLElement | null = null;
+  private lastOutput: string = '';
+  private lastPrompt: string = '';
   
   private searchQuery = '';
   private selectedCategory = 'featured';
+  private chatMessages: { role: 'user'|'assistant'|'system'; content: string }[] = [];
   private selectedProvider = '';
+  private configuredModels: AIModelConfig[] = [];
+  private selectedModelId: string | null = null;
   private selectedTemplate: Template | null = null;
 
   constructor(
@@ -22,7 +28,7 @@ export class AtAIModal extends Modal {
     aiProviderManager: AIProviderManager,
     context: ProcessContext,
     settings: PluginSettings,
-    onExecute: (templateId: string, modelProvider: string, context: ProcessContext, outputMode: 'replace' | 'insert') => Promise<void>
+    onExecute: (templateId: string, modelProvider: string, context: ProcessContext & { selectedModel?: AIModelConfig }, outputMode: 'replace' | 'insert') => Promise<string>
   ) {
     super(app);
     this.templateLoader = templateLoader;
@@ -31,14 +37,26 @@ export class AtAIModal extends Modal {
     this.settings = settings;
     this.onExecute = onExecute;
     
-    // 设置默认提供商
-    const autoProvider = this.aiProviderManager.getAutoProvider();
-    this.selectedProvider = autoProvider || '';
+    // 读取“已配置模型”（新架构，若存在则优先使用）
+    const ext = this.settings as ExtendedPluginSettings;
+    this.configuredModels = (ext.models || []).filter(m => m.enabled);
+    if (this.configuredModels.length > 0) {
+      this.selectedModelId = ext.activeModelId || this.configuredModels[0].id;
+      // 与旧逻辑兼容：selectedProvider 仍然用于 sendRequest 的 provider 指定
+      const active = this.configuredModels.find(m => m.id === this.selectedModelId);
+      this.selectedProvider = active?.provider || '';
+    } else {
+      // 回退到旧的“提供商”选择
+      const autoProvider = this.aiProviderManager.getAutoProvider();
+      this.selectedProvider = autoProvider || '';
+    }
   }
 
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    // 扩展宽度
+    this.modalEl.addClass('at-ai-inline-modal');
     
     // 添加标题
     const titleEl = contentEl.createEl('div', { cls: 'modal-title' });
@@ -76,6 +94,9 @@ export class AtAIModal extends Modal {
     const templateContainer = contentEl.createEl('div', { cls: 'template-container' });
     this.updateTemplateList();
 
+    // 结果输出区域
+    this.outputEl = contentEl.createEl('div', { cls: 'ai-output-container' });
+
     // 底部工具栏
     this.createBottomToolbar();
   }
@@ -86,6 +107,7 @@ export class AtAIModal extends Modal {
     const tabsContainer = contentEl.createEl('div', { cls: 'category-tabs' });
     
     const categories = [
+      { id: 'chat', name: '对话' },
       { id: 'featured', name: t('category.featured') },
       { id: 'rewrite', name: t('category.rewrite') },
       { id: 'continue', name: t('category.continue') },
@@ -109,6 +131,10 @@ export class AtAIModal extends Modal {
         tabEl.className = 'tab-active';
         
         this.selectedCategory = category.id;
+        // 切换分类时清空执行区，避免历史混杂
+        this.lastOutput = '';
+        this.lastPrompt = '';
+        if (this.outputEl) this.outputEl.empty();
         this.updateTemplateList();
       });
     }
@@ -128,6 +154,12 @@ export class AtAIModal extends Modal {
 
     templateContainer.empty();
 
+    // 对话模式：显示一个对话面板
+    if (this.selectedCategory === 'chat') {
+      this.renderChatPanel(templateContainer);
+      return;
+    }
+
     // 获取模板
     let templates: Template[] = [];
     
@@ -139,18 +171,72 @@ export class AtAIModal extends Modal {
       templates = this.templateLoader.getTemplatesByCategory(this.selectedCategory);
     }
 
+    // 若分类为空且未搜索，则退回显示“全部”以便快速发现
+    if (templates.length === 0 && !this.searchQuery.trim()) {
+      templates = this.templateLoader.getTemplates();
+    }
+
     // 显示模板卡片
     if (templates.length === 0) {
       const emptyEl = templateContainer.createEl('div', { cls: 'empty-message' });
-      emptyEl.textContent = this.searchQuery ? 
-        'No templates found' : 
-        `No templates in ${this.selectedCategory} category`;
+      emptyEl.textContent = 'No templates found';
       return;
     }
 
     for (const template of templates) {
       this.createTemplateCard(templateContainer, template);
     }
+  }
+
+  private renderChatPanel(container: HTMLElement) {
+    // 历史
+    const historyEl = container.createEl('div', { cls: 'chat-history' });
+    // 折叠原文
+    const context = this.context.selectedText || this.context.fullText || '';
+    const ctxDetails = container.createEl('details');
+    const sum = ctxDetails.createEl('summary');
+    sum.textContent = `原文（${context.length} 字）`;
+    const ctxPre = ctxDetails.createEl('pre');
+    ctxPre.textContent = context.slice(0, 4000); // 避免超长
+    if (this.chatMessages.length === 0) {
+      historyEl.createEl('div', { cls: 'empty-message', text: '与AI基于本文对话。输入问题并发送。' });
+    } else {
+      this.chatMessages.forEach(msg => {
+        const block = historyEl.createEl('div', { cls: 'template-card' });
+        block.createEl('div', { cls: 'template-title', text: msg.role === 'user' ? '你' : 'AI' });
+        block.createEl('div', { cls: 'template-description', text: msg.content });
+      });
+    }
+
+    // 输入框
+    const inputWrap = container.createEl('div', { cls: 'search-container' });
+    const textarea = inputWrap.createEl('textarea', { cls: 'search-input' }) as HTMLTextAreaElement;
+    textarea.placeholder = '输入要讨论的问题...';
+
+    const sendBtn = inputWrap.createEl('button', { cls: 'mod-cta', text: '发送' });
+    const send = async () => {
+      const question = (textarea.value || '').trim();
+      if (!question) return;
+      this.chatMessages.push({ role: 'user', content: question });
+      textarea.value = '';
+      // 立即更新 UI
+      container.empty();
+      this.renderChatPanel(container);
+
+      // 组装 prompt 并调用
+      const chatPrompt = `基于以下内容回答用户问题。若问题与内容无关，也应尽量参考原文再作答。\n\n【内容】\n${context}\n\n【用户】\n${question}`;
+      // 使用内联提示词
+      this.selectedTemplate = { id: '__inline__', title: '对话', category: 'other', content: chatPrompt } as any;
+      await this.executeTemplate(true);
+      // 将结果写入历史（在 executeTemplate 完成后 lastOutput 已更新）
+      if (this.lastOutput) {
+        this.chatMessages.push({ role: 'assistant', content: this.lastOutput });
+        container.empty();
+        this.renderChatPanel(container);
+      }
+    };
+    sendBtn.addEventListener('click', send);
+    textarea.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send(); });
   }
 
   private createTemplateCard(container: HTMLElement, template: Template): void {
@@ -172,23 +258,8 @@ export class AtAIModal extends Modal {
       }
     }
 
-    // 点击事件
+    // 点击即执行
     cardEl.addEventListener('click', () => {
-      // 清除其他选中状态
-      container.querySelectorAll('.template-card').forEach(el => {
-        el.removeClass('selected');
-      });
-      
-      // 选中当前卡片
-      cardEl.addClass('selected');
-      this.selectedTemplate = template;
-      
-      // 更新执行按钮状态
-      this.updateExecuteButton();
-    });
-
-    // 双击直接执行
-    cardEl.addEventListener('dblclick', () => {
       this.selectedTemplate = template;
       this.executeTemplate();
     });
@@ -199,48 +270,64 @@ export class AtAIModal extends Modal {
     
     const toolbarEl = contentEl.createEl('div', { cls: 'bottom-toolbar' });
     
-    // 模型选择
+    // 模型/提供商选择
     const providerContainer = toolbarEl.createEl('div', { cls: 'provider-container' });
-    const providerLabel = providerContainer.createEl('label', { text: t('ui.model.label') + ':' });
-    
-    const providerSelect = providerContainer.createEl('select', { cls: 'provider-select' });
-    
-    // 添加自动选择选项
-    const autoOption = providerSelect.createEl('option', { 
-      value: 'auto', 
-      text: t('ui.model.auto') 
-    });
-    
-    // 添加可用提供商
-    const availableProviders = this.aiProviderManager.getAvailableProviders();
-    for (const provider of availableProviders) {
-      const option = providerSelect.createEl('option', {
-        value: provider.id,
-        text: provider.displayName
+    providerContainer.createEl('label', { text: t('ui.model.label') + ':' });
+
+    if (this.configuredModels.length > 0) {
+      // 显示“已配置模型”下拉
+      const modelSelect = providerContainer.createEl('select', { cls: 'provider-select' });
+      for (const m of this.configuredModels) {
+        const opt = modelSelect.createEl('option', {
+          value: m.id,
+          text: `${m.name} (${m.providerName})`
+        });
+      }
+      modelSelect.value = this.selectedModelId ?? this.configuredModels[0].id;
+      modelSelect.addEventListener('change', (e) => {
+        const id = (e.target as HTMLSelectElement).value;
+        this.selectedModelId = id;
+        const active = this.configuredModels.find(m => m.id === id);
+        this.selectedProvider = active?.provider || '';
+      });
+    } else {
+      // 回退：显示“提供商”下拉（旧逻辑）
+      const providerSelect = providerContainer.createEl('select', { cls: 'provider-select' });
+      const autoOption = providerSelect.createEl('option', { value: 'auto', text: t('ui.model.auto') });
+      const availableProviders = this.aiProviderManager.getAvailableProviders();
+      for (const provider of availableProviders) {
+        providerSelect.createEl('option', { value: provider.id, text: provider.displayName });
+      }
+      providerSelect.value = this.selectedProvider || 'auto';
+      providerSelect.addEventListener('change', (e) => {
+        this.selectedProvider = (e.target as HTMLSelectElement).value;
       });
     }
-    
-    providerSelect.value = this.selectedProvider || 'auto';
-    providerSelect.addEventListener('change', (e) => {
-      this.selectedProvider = (e.target as HTMLSelectElement).value;
-    });
 
     // 执行按钮
     const buttonContainer = toolbarEl.createEl('div', { cls: 'button-container' });
     
-    const executeBtn = buttonContainer.createEl('button', {
-      text: t('ui.execute'),
-      cls: 'mod-cta execute-btn'
-    });
+    const executeBtn = buttonContainer.createEl('button', { text: '执行', cls: 'mod-cta execute-btn' });
     
     executeBtn.addEventListener('click', () => {
       this.executeTemplate();
     });
 
-    const cancelBtn = buttonContainer.createEl('button', {
-      text: t('ui.cancel'),
-      cls: 'cancel-btn'
+    const insertBtn = buttonContainer.createEl('button', { text: '插入到文档', cls: 'cancel-btn' });
+    insertBtn.addEventListener('click', () => {
+      if (!this.lastOutput) return;
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+      const editor = view?.editor;
+      if (!editor) return;
+      if (this.context.selectedText) {
+        editor.replaceSelection(this.lastOutput);
+      } else {
+        const cursor = editor.getCursor();
+        editor.replaceRange('\n\n' + this.lastOutput, cursor);
+      }
     });
+
+    const cancelBtn = buttonContainer.createEl('button', { text: t('ui.cancel'), cls: 'cancel-btn' });
     
     cancelBtn.addEventListener('click', () => {
       this.close();
@@ -257,7 +344,7 @@ export class AtAIModal extends Modal {
     }
   }
 
-  private async executeTemplate(): Promise<void> {
+  private async executeTemplate(isInline = false): Promise<void> {
     if (!this.selectedTemplate) {
       return;
     }
@@ -273,20 +360,37 @@ export class AtAIModal extends Modal {
     }
 
     try {
-      this.close();
-      
+      // 准备并显示提示词
+      this.lastPrompt = isInline ? (this.selectedTemplate.content || '') : this.templateLoader.renderTemplate(this.selectedTemplate, this.context);
+      // 显示执行中
+      if (this.outputEl) {
+        this.outputEl.empty();
+        const sent = this.outputEl.createEl('div', { cls: 'ai-output-section' });
+        sent.createEl('div', { text: '发送的提示词：', cls: 'template-title' });
+        const sentPre = sent.createEl('pre');
+        sentPre.textContent = this.lastPrompt;
+        const running = this.outputEl.createEl('pre');
+        running.textContent = '执行中...';
+      }
       // 确定输出模式
       const outputMode = this.context.selectedText ? 'replace' : 'insert';
-      
-      await this.onExecute(
-        this.selectedTemplate.id,
-        provider,
-        this.context,
-        outputMode
-      );
-    } catch (error) {
+      // 若选择了“已配置模型”，一起传给处理函数（以便覆盖模板中的 model）
+      const selectedModel = this.configuredModels.find(m => m.id === this.selectedModelId || '');
+      const result = await this.onExecute(this.selectedTemplate.id, provider, { ...this.context, selectedModel, inlinePrompt: isInline ? this.lastPrompt : undefined } as any, outputMode);
+      this.lastOutput = result || '';
+      if (this.outputEl) {
+        const resultBlock = this.outputEl.createEl('div', { cls: 'ai-output-section' });
+        resultBlock.createEl('div', { text: 'AI 返回：', cls: 'template-title' });
+        const pre = resultBlock.createEl('pre');
+        pre.textContent = this.lastOutput || '(无输出)';
+      }
+    } catch (error: any) {
       console.error('Failed to execute template:', error);
-      // TODO: 显示错误提示
+      if (this.outputEl) {
+        this.outputEl.empty();
+        const pre = this.outputEl.createEl('pre');
+        pre.textContent = `请求失败：${error?.message || error}`;
+      }
     }
   }
 }

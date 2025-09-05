@@ -67,6 +67,56 @@
   margin-bottom: 1rem;
 }
 
+.ai-output-container {
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  max-height: 300px;
+  overflow: auto;
+}
+
+.ai-output-section {
+  margin-bottom: 0.75rem;
+}
+
+/* Chat layout */
+.chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.chat-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.chat-msg.left { justify-content: flex-start; }
+.chat-msg.right { justify-content: flex-end; }
+
+.chat-role {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.chat-bubble {
+  max-width: 70%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+  white-space: pre-wrap;
+}
+
+.chat-msg.right .chat-bubble {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
 .template-card {
   padding: 1rem;
   margin-bottom: 0.5rem;
@@ -351,6 +401,12 @@
    ============================================= */
 
 /* 模型管理器主容器 */
+.modal.at-ai-model-manager-modal {
+  width: 90vw;
+  max-width: 900px;
+  min-width: 700px;
+}
+
 .at-ai-model-manager {
   padding: 20px;
   max-width: 900px;
@@ -734,6 +790,13 @@
   width: 60vw;
 }
 
+/* 添加模型弹窗宽度 */
+.modal.add-model-modal {
+  width: 90vw;
+  max-width: 900px;
+  min-width: 700px;
+}
+
 .edit-model-modal h3 {
   text-align: center;
   margin-bottom: 20px;
@@ -807,4 +870,10 @@
     justify-content: center;
     align-items: center;
   }
+}
+/* InlineAIModal 宽度 */
+.modal.at-ai-inline-modal {
+  width: 90vw;
+  max-width: 1000px;
+  min-width: 720px;
 }

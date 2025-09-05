@@ -1,5 +1,5 @@
 import { AIProvider, AIProviderFactory } from './AIProvider';
-import { AIProviderConfig, AIRequest, AIResponse } from '../types';
+import { AIProviderConfig, AIRequest, AIResponse, AIModelConfig } from '../types';
 
 export class AIProviderManager {
   private providers = new Map<string, AIProvider>();
@@ -82,6 +82,22 @@ export class AIProviderManager {
       finalRequest.model = config.defaultModel || config.models[0]?.id || 'gpt-3.5-turbo';
     }
 
+    return await provider.sendRequest(finalRequest);
+  }
+
+  /**
+   * 使用模型级配置发送请求（绕过全局提供商配置）
+   */
+  async sendRequestWithModel(model: AIModelConfig, request: AIRequest): Promise<AIResponse> {
+    if (!model.apiKey || !model.baseUrl) {
+      throw new Error('Model missing apiKey or baseUrl');
+    }
+    // 临时创建 provider 实例
+    const provider = AIProviderFactory.createProvider(model.provider, model.apiKey, model.baseUrl);
+    const finalRequest: AIRequest = {
+      ...request,
+      model: request.model || model.modelId
+    };
     return await provider.sendRequest(finalRequest);
   }
 

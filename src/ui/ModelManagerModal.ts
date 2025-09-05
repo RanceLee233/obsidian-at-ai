@@ -1,5 +1,5 @@
 import { App, Modal, Setting, Notice } from 'obsidian';
-import { AIModelConfig, PresetModel, PRESET_MODELS } from '../types';
+import { AIModelConfig } from '../types';
 import AtAIPlugin from '../main';
 import { t } from '../i18n';
 
@@ -26,6 +26,8 @@ export class ModelManagerModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    // 扩大对话框宽度：需要同时给 modalEl 与 contentEl 加类
+    this.modalEl.addClass('at-ai-model-manager-modal');
     contentEl.addClass('at-ai-model-manager');
 
     // 标题
@@ -57,9 +59,9 @@ export class ModelManagerModal extends Modal {
     // 模型列表标题栏
     if (this.models.length > 0) {
       const headerEl = container.createEl('div', { cls: 'model-list-header' });
-      headerEl.createEl('div', { text: '模型名称', cls: 'header-model' });
+      headerEl.createEl('div', { text: '模型', cls: 'header-model' });
       headerEl.createEl('div', { text: '提供商', cls: 'header-provider' });
-      headerEl.createEl('div', { text: '当前选择', cls: 'header-active' });
+      headerEl.createEl('div', { text: '生效', cls: 'header-active' });
       headerEl.createEl('div', { text: '操作', cls: 'header-actions' });
     }
 
@@ -75,19 +77,10 @@ export class ModelManagerModal extends Modal {
       this.models.forEach(model => this.renderModelRow(listEl, model));
     }
 
-    // 底部操作栏
+    // 底部操作栏（仅关闭）
     const footerEl = container.createEl('div', { cls: 'modal-footer' });
-    
-    const saveButton = footerEl.createEl('button', { 
-      cls: 'mod-cta',
-      text: '保存设置'
-    });
-    saveButton.addEventListener('click', () => this.saveAndClose());
-
-    const cancelButton = footerEl.createEl('button', { 
-      text: '取消'
-    });
-    cancelButton.addEventListener('click', () => this.close());
+    const closeButton = footerEl.createEl('button', { text: '关闭' });
+    closeButton.addEventListener('click', () => this.close());
   }
 
   private renderModelRow(container: HTMLElement, model: AIModelConfig) {
@@ -95,21 +88,25 @@ export class ModelManagerModal extends Modal {
 
     // 模型名称和描述
     const modelEl = rowEl.createEl('div', { cls: 'model-info' });
-    modelEl.createEl('div', { text: model.name, cls: 'model-name' });
-    modelEl.createEl('div', { text: model.modelId, cls: 'model-id' });
+    modelEl.createEl('div', { text: model.modelId, cls: 'model-name' });
+    if (model.name) {
+      modelEl.createEl('div', { text: model.name, cls: 'model-id' });
+    }
 
     // 提供商
     const providerEl = rowEl.createEl('div', { cls: 'model-provider' });
     providerEl.createEl('div', { text: model.providerName, cls: 'provider-name' });
 
-    // 当前选择单选框
+    // 生效选择（复选框，确保单一生效）
     const activeEl = rowEl.createEl('div', { cls: 'model-active' });
-    const radioButton = activeEl.createEl('input', { type: 'radio' });
-    radioButton.name = 'active-model';
-    radioButton.checked = model.isActive;
-    radioButton.addEventListener('change', () => {
-      if (radioButton.checked) {
+    const activeCheck = activeEl.createEl('input', { type: 'checkbox' });
+    activeCheck.checked = model.isActive;
+    activeCheck.addEventListener('change', () => {
+      if (activeCheck.checked) {
         this.setActiveModel(model.id);
+      } else if (this.activeModelId === model.id) {
+        // 至少一个生效，取消当前生效则还原
+        activeCheck.checked = true;
       }
     });
 
@@ -144,6 +141,8 @@ export class ModelManagerModal extends Modal {
       model.isActive = model.id === modelId;
     });
     this.activeModelId = modelId;
+    // 即时回调外部保存
+    this.onModelsChanged(this.models, this.activeModelId);
     this.renderModelList();
   }
 
@@ -154,9 +153,14 @@ export class ModelManagerModal extends Modal {
       
       // 如果删除的是当前激活模型，清除激活状态
       if (this.activeModelId === modelId) {
-        this.activeModelId = null;
+        this.activeModelId = this.models[0]?.id || null;
+        if (this.activeModelId) {
+          this.models.forEach(m => m.isActive = m.id === this.activeModelId);
+        }
       }
       
+      // 即时回调外部保存
+      this.onModelsChanged(this.models, this.activeModelId);
       this.renderModelList();
     }
   }
@@ -164,6 +168,12 @@ export class ModelManagerModal extends Modal {
   private showAddModelModal() {
     new AddModelModal(this.app, (newModel: AIModelConfig) => {
       this.models.push(newModel);
+      // 若当前无激活模型，则设置新模型为激活
+      if (!this.activeModelId) {
+        this.setActiveModel(newModel.id);
+      } else {
+        this.onModelsChanged(this.models, this.activeModelId);
+      }
       this.renderModelList();
     }).open();
   }
@@ -178,10 +188,7 @@ export class ModelManagerModal extends Modal {
     }).open();
   }
 
-  private saveAndClose() {
-    this.onModelsChanged(this.models, this.activeModelId);
-    this.close();
-  }
+  // 即时保存，不再需要显式保存按钮
 
   onClose() {
     const { contentEl } = this;
@@ -201,259 +208,120 @@ class AddModelModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    // 扩大添加窗口宽度
+    this.modalEl.addClass('add-model-modal');
     contentEl.addClass('add-model-modal');
-
     contentEl.createEl('h3', { text: '添加模型' });
 
-    // 选项标签
-    const tabContainer = contentEl.createEl('div', { cls: 'tab-container' });
-    const presetTab = tabContainer.createEl('button', { 
-      text: '预设模型', 
-      cls: 'tab-button active'
-    });
-    const providerTab = tabContainer.createEl('button', { 
-      text: '快速配置', 
-      cls: 'tab-button'
-    });
-    const customTab = tabContainer.createEl('button', { 
-      text: '自定义模型', 
-      cls: 'tab-button'
-    });
+    const formEl = contentEl.createEl('div', { cls: 'custom-model-form' });
 
-    // 内容区域
-    const contentContainer = contentEl.createEl('div', { cls: 'tab-content' });
-    
-    let activeTab = 'preset';
+    const providers = [
+      { name: 'OpenAI', id: 'openai', baseUrl: 'https://api.openai.com/v1' },
+      { name: 'OpenRouter', id: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1' },
+      { name: 'Anthropic', id: 'anthropic', baseUrl: 'https://api.anthropic.com' },
+      { name: 'Gemini', id: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta' },
+      { name: 'DeepSeek', id: 'deepseek', baseUrl: 'https://api.deepseek.com/v1' },
+      { name: 'Kimi (Moonshot)', id: 'kimi', baseUrl: 'https://api.moonshot.cn/v1' },
+      { name: 'GLM', id: 'glm', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+      { name: 'Ollama', id: 'ollama', baseUrl: 'http://localhost:11434/v1' },
+      { name: 'LM Studio', id: 'lmstudio', baseUrl: 'http://localhost:1234/v1' },
+      { name: '自定义', id: 'custom', baseUrl: '' }
+    ];
 
-    const renderPresetModels = () => {
-      contentContainer.empty();
-      
-      const categories = [...new Set(PRESET_MODELS.map(m => m.category || '其他'))];
-      
-      categories.forEach(category => {
-        const categoryEl = contentContainer.createEl('div', { cls: 'preset-category' });
-        categoryEl.createEl('h4', { text: category });
-        
-        const modelsInCategory = PRESET_MODELS.filter(m => (m.category || '其他') === category);
-        
-        modelsInCategory.forEach(preset => {
-          const modelEl = categoryEl.createEl('div', { cls: 'preset-model-item' });
-          
-          const infoEl = modelEl.createEl('div', { cls: 'preset-info' });
-          infoEl.createEl('div', { text: preset.name, cls: 'preset-name' });
-          infoEl.createEl('div', { text: preset.description || preset.modelId, cls: 'preset-desc' });
-          
-          const addBtn = modelEl.createEl('button', { 
-            text: '添加',
-            cls: 'mod-cta preset-add-btn'
-          });
-          
-          addBtn.addEventListener('click', () => {
-            const newModel = this.createModelFromPreset(preset);
-            this.onModelAdded(newModel);
-            this.close();
-          });
-        });
-      });
+    const formData = {
+      modelId: '',
+      name: '',
+      provider: 'openai',
+      providerName: 'OpenAI',
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: ''
     };
 
-    const renderCustomForm = () => {
-      contentContainer.empty();
-      
-      const formEl = contentContainer.createEl('div', { cls: 'custom-model-form' });
-      
-      let formData = {
-        name: '',
-        modelId: '',
-        provider: 'custom',
-        providerName: '自定义',
-        baseUrl: '',
-        apiKey: '',
+    new Setting(formEl)
+      .setName('Model Name')
+      .setDesc('如：gpt-4o、claude-3-5-sonnet、google/gemini-2.0-flash')
+      .addText(t => t.setPlaceholder('输入模型名').onChange(v => formData.modelId = v));
+
+    new Setting(formEl)
+      .setName('Display Name (可选)')
+      .addText(t => t.setPlaceholder('自定义显示名').onChange(v => formData.name = v));
+
+    new Setting(formEl)
+      .setName('Provider')
+      .addDropdown(d => {
+        providers.forEach(p => d.addOption(p.id, p.name));
+        d.setValue(formData.provider).onChange(v => {
+          formData.provider = v;
+          const p = providers.find(x => x.id === v);
+          formData.providerName = p?.name || '自定义';
+          if (p) {
+            baseUrlInput.setValue(p.baseUrl);
+            formData.baseUrl = p.baseUrl;
+          }
+        });
+      });
+
+    let baseUrlInput: import('obsidian').TextComponent;
+    new Setting(formEl)
+      .setName('Base URL')
+      .addText(t => { baseUrlInput = t; t.setValue(formData.baseUrl).onChange(v => formData.baseUrl = v); });
+
+    new Setting(formEl)
+      .setName('API Key')
+      .addText(t => { t.inputEl.type = 'password'; t.onChange(v => formData.apiKey = v); });
+
+    const buttonContainer = formEl.createEl('div', { cls: 'form-buttons' });
+    const testBtn = buttonContainer.createEl('button', { text: '测试连接', cls: 'mod-warning' });
+    const addBtn = buttonContainer.createEl('button', { cls: 'mod-cta', text: '添加模型' });
+    testBtn.addEventListener('click', async () => {
+      testBtn.textContent = '测试中...';
+      testBtn.setAttr('disabled', 'true');
+      try {
+        const ok = await this.testConnection(formData.baseUrl, formData.apiKey);
+        new Notice(ok ? '连接成功' : '连接失败');
+      } catch (e) {
+        new Notice('连接失败');
+      } finally {
+        testBtn.textContent = '测试连接';
+        testBtn.removeAttribute('disabled');
+      }
+    });
+    addBtn.addEventListener('click', () => {
+      if (!formData.modelId.trim()) {
+        new Notice('请填写模型名');
+        return;
+      }
+      const newModel: AIModelConfig = {
+        id: `${formData.provider}-${Date.now()}`,
+        name: formData.name || '',
+        modelId: formData.modelId,
+        provider: formData.provider,
+        providerName: formData.providerName,
+        apiKey: formData.apiKey,
+        baseUrl: formData.baseUrl,
         temperature: 0.7,
-        maxTokens: 2000
+        maxTokens: 2000,
+        enabled: true,
+        isActive: false,
+        createdAt: Date.now()
       };
-
-      new Setting(formEl)
-        .setName('模型名称')
-        .setDesc('显示名称，可以自定义')
-        .addText(text => {
-          text.setPlaceholder('如：我的GPT-4o')
-            .onChange(value => formData.name = value);
-        });
-
-      new Setting(formEl)
-        .setName('模型ID')
-        .setDesc('实际的模型标识符')
-        .addText(text => {
-          text.setPlaceholder('如：gpt-4o')
-            .onChange(value => formData.modelId = value);
-        });
-
-      new Setting(formEl)
-        .setName('提供商名称')
-        .addText(text => {
-          text.setPlaceholder('如：OpenAI')
-            .onChange(value => formData.providerName = value);
-        });
-
-      new Setting(formEl)
-        .setName('API 端点')
-        .addText(text => {
-          text.setPlaceholder('https://api.openai.com/v1')
-            .onChange(value => formData.baseUrl = value);
-        });
-
-      new Setting(formEl)
-        .setName('API 密钥')
-        .addText(text => {
-          text.setPlaceholder('sk-...')
-            .onChange(value => formData.apiKey = value);
-          text.inputEl.type = 'password';
-        });
-
-      const buttonContainer = formEl.createEl('div', { cls: 'form-buttons' });
-      const addButton = buttonContainer.createEl('button', { 
-        text: '添加模型',
-        cls: 'mod-cta'
-      });
-      
-      addButton.addEventListener('click', () => {
-        if (!formData.name || !formData.modelId) {
-          new Notice('请填写模型名称和模型ID');
-          return;
-        }
-        
-        const newModel: AIModelConfig = {
-          id: `custom-${Date.now()}`,
-          name: formData.name,
-          modelId: formData.modelId,
-          provider: 'custom',
-          providerName: formData.providerName,
-          apiKey: formData.apiKey,
-          baseUrl: formData.baseUrl,
-          temperature: formData.temperature,
-          maxTokens: formData.maxTokens,
-          enabled: true,
-          isActive: false,
-          createdAt: Date.now()
-        };
-        
-        this.onModelAdded(newModel);
-        this.close();
-      });
-    };
-
-    const renderProviderModels = () => {
-      contentContainer.empty();
-      
-      // 按提供商分组的快速配置
-      const providers = [
-        { name: 'OpenAI', id: 'openai', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
-        { name: 'Anthropic Claude', id: 'anthropic', models: ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'] },
-        { name: 'Kimi (月之暗面)', id: 'kimi', models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'] },
-        { name: 'DeepSeek', id: 'deepseek', models: ['deepseek-chat', 'deepseek-coder'] },
-        { name: 'GLM (智谱)', id: 'glm', models: ['glm-4', 'glm-4-plus', 'glm-3-turbo'] },
-        { name: 'Google Gemini', id: 'gemini', models: ['gemini-1.5-pro', 'gemini-1.5-flash'] },
-        { name: 'xAI Grok', id: 'grok', models: ['grok-beta', 'grok-vision-beta'] },
-        { name: 'Ollama (本地)', id: 'ollama', models: ['llama3.2', 'qwen2.5', 'deepseek-coder-v2'] }
-      ];
-      
-      providers.forEach(provider => {
-        const providerEl = contentContainer.createEl('div', { cls: 'provider-quick-config' });
-        providerEl.createEl('h4', { text: provider.name });
-        
-        const modelsGrid = providerEl.createEl('div', { cls: 'models-grid' });
-        
-        provider.models.forEach(modelId => {
-          const modelBtn = modelsGrid.createEl('button', { 
-            text: modelId,
-            cls: 'quick-model-btn'
-          });
-          
-          modelBtn.addEventListener('click', () => {
-            // 创建快速配置模型
-            const newModel = this.createQuickModel(provider.id, provider.name, modelId);
-            this.onModelAdded(newModel);
-            this.close();
-          });
-        });
-      });
-    };
-
-    // 标签切换逻辑
-    presetTab.addEventListener('click', () => {
-      activeTab = 'preset';
-      presetTab.addClass('active');
-      providerTab.removeClass('active');
-      customTab.removeClass('active');
-      renderPresetModels();
+      this.onModelAdded(newModel);
+      this.close();
     });
-
-    providerTab.addEventListener('click', () => {
-      activeTab = 'provider';
-      providerTab.addClass('active');
-      presetTab.removeClass('active');
-      customTab.removeClass('active');
-      renderProviderModels();
-    });
-
-    customTab.addEventListener('click', () => {
-      activeTab = 'custom';
-      customTab.addClass('active');
-      presetTab.removeClass('active');
-      providerTab.removeClass('active');
-      renderCustomForm();
-    });
-
-    // 初始渲染
-    renderPresetModels();
   }
 
-  private createModelFromPreset(preset: PresetModel): AIModelConfig {
-    return {
-      id: `${preset.provider}-${preset.modelId}-${Date.now()}`,
-      name: preset.name,
-      modelId: preset.modelId,
-      provider: preset.provider,
-      providerName: preset.providerName,
-      apiKey: '',
-      baseUrl: preset.baseUrl,
-      temperature: preset.temperature,
-      maxTokens: preset.maxTokens,
-      enabled: true,
-      isActive: false,
-      createdAt: Date.now()
-    };
+  private async testConnection(baseUrl: string, apiKey: string): Promise<boolean> {
+    try {
+      if (!baseUrl || !apiKey) return false;
+      const url = baseUrl.replace(/\/$/, '') + '/models';
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
-  private createQuickModel(providerId: string, providerName: string, modelId: string): AIModelConfig {
-    // 获取提供商的默认配置
-    const baseUrls: { [key: string]: string } = {
-      'openai': 'https://api.openai.com/v1',
-      'anthropic': 'https://api.anthropic.com',
-      'kimi': 'https://api.moonshot.cn/v1',
-      'deepseek': 'https://api.deepseek.com/v1',
-      'glm': 'https://open.bigmodel.cn/api/paas/v4',
-      'gemini': 'https://generativelanguage.googleapis.com/v1beta',
-      'grok': 'https://api.x.ai/v1',
-      'ollama': 'http://localhost:11434/v1'
-    };
-
-    return {
-      id: `${providerId}-${modelId}-${Date.now()}`,
-      name: `${providerName} - ${modelId}`,
-      modelId: modelId,
-      provider: providerId,
-      providerName: providerName,
-      apiKey: '',
-      baseUrl: baseUrls[providerId] || '',
-      temperature: 0.7,
-      maxTokens: 2000,
-      enabled: true,
-      isActive: false,
-      createdAt: Date.now()
-    };
-  }
+  // 预设/快速配置已取消，无需额外方法
 
   onClose() {
     const { contentEl } = this;
@@ -477,23 +345,17 @@ class EditModelModal extends Modal {
     contentEl.empty();
     contentEl.addClass('edit-model-modal');
 
-    contentEl.createEl('h3', { text: `编辑模型：${this.model.name}` });
+    contentEl.createEl('h3', { text: `编辑模型：${this.model.modelId}` });
 
     const formEl = contentEl.createEl('div', { cls: 'edit-model-form' });
 
     new Setting(formEl)
-      .setName('模型名称')
-      .addText(text => {
-        text.setValue(this.model.name)
-          .onChange(value => this.model.name = value);
-      });
+      .setName('Model Name')
+      .addText(text => { text.setValue(this.model.modelId).onChange(v => this.model.modelId = v); });
 
     new Setting(formEl)
-      .setName('模型ID')
-      .addText(text => {
-        text.setValue(this.model.modelId)
-          .onChange(value => this.model.modelId = value);
-      });
+      .setName('Display Name (可选)')
+      .addText(text => { text.setValue(this.model.name || '').onChange(v => this.model.name = v); });
 
     new Setting(formEl)
       .setName('API 密钥')
@@ -503,41 +365,41 @@ class EditModelModal extends Modal {
         text.inputEl.type = 'password';
       });
 
+    // Provider 下拉与 Base URL
+    const providers = [
+      { name: 'OpenAI', id: 'openai', baseUrl: 'https://api.openai.com/v1' },
+      { name: 'OpenRouter', id: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1' },
+      { name: 'Anthropic', id: 'anthropic', baseUrl: 'https://api.anthropic.com' },
+      { name: 'Gemini', id: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta' },
+      { name: 'DeepSeek', id: 'deepseek', baseUrl: 'https://api.deepseek.com/v1' },
+      { name: 'Kimi (Moonshot)', id: 'kimi', baseUrl: 'https://api.moonshot.cn/v1' },
+      { name: 'GLM', id: 'glm', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+      { name: 'Ollama', id: 'ollama', baseUrl: 'http://localhost:11434/v1' },
+      { name: 'LM Studio', id: 'lmstudio', baseUrl: 'http://localhost:1234/v1' },
+      { name: '自定义', id: 'custom', baseUrl: '' }
+    ];
+
+    let baseUrlInput: import('obsidian').TextComponent;
     new Setting(formEl)
-      .setName('API 端点')
-      .addText(text => {
-        text.setValue(this.model.baseUrl)
-          .onChange(value => this.model.baseUrl = value);
+      .setName('Provider')
+      .addDropdown(d => {
+        providers.forEach(p => d.addOption(p.id, p.name));
+        d.setValue(this.model.provider).onChange(v => {
+          this.model.provider = v;
+          const p = providers.find(x => x.id === v);
+          this.model.providerName = p?.name || '自定义';
+          if (p) {
+            baseUrlInput.setValue(p.baseUrl);
+            this.model.baseUrl = p.baseUrl;
+          }
+        });
       });
 
     new Setting(formEl)
-      .setName('温度')
-      .setDesc('控制输出的随机性 (0-2)')
-      .addSlider(slider => {
-        slider.setLimits(0, 2, 0.1)
-          .setValue(this.model.temperature)
-          .onChange(value => this.model.temperature = value)
-          .setDynamicTooltip();
-      });
+      .setName('Base URL')
+      .addText(text => { baseUrlInput = text; text.setValue(this.model.baseUrl).onChange(v => this.model.baseUrl = v); });
 
-    new Setting(formEl)
-      .setName('最大Token数')
-      .addText(text => {
-        text.setValue(String(this.model.maxTokens))
-          .onChange(value => {
-            const num = parseInt(value);
-            if (!isNaN(num)) {
-              this.model.maxTokens = num;
-            }
-          });
-      });
-
-    new Setting(formEl)
-      .setName('启用模型')
-      .addToggle(toggle => {
-        toggle.setValue(this.model.enabled)
-          .onChange(value => this.model.enabled = value);
-      });
+    // 精简：移除温度/最大Token/启用开关
 
     const buttonContainer = formEl.createEl('div', { cls: 'form-buttons' });
     

@@ -9,7 +9,7 @@ export class TemplateLoader {
 
   constructor(app: App, templateFolder: string) {
     this.app = app;
-    this.templateFolder = templateFolder;
+    this.templateFolder = this.normalizePath(templateFolder);
     this.initBuiltinTemplates();
   }
 
@@ -94,71 +94,78 @@ export class TemplateLoader {
    * 设置模板文件夹
    */
   setTemplateFolder(folder: string): void {
-    this.templateFolder = folder;
+    // 仅更新路径，不在每次输入时创建目录，避免边输入边生成多层文件夹
+    this.templateFolder = this.normalizePath(folder);
   }
 
   /**
    * 加载所有模板
    */
   async loadTemplates(): Promise<void> {
-    // 清除现有用户模板
+    // 清空
     this.templates.clear();
 
-    // 先添加内置模板
-    for (const [id, template] of this.builtinTemplates) {
-      this.templates.set(id, { ...template });
-    }
-
     try {
-      // 确保模板文件夹存在
       const folder = this.app.vault.getAbstractFileByPath(this.templateFolder);
       if (!folder) {
-        // 创建模板文件夹
         await this.app.vault.createFolder(this.templateFolder);
-        // 创建示例模板文件
-        await this.createExampleTemplates();
+        // 即使刚创建，也先写入默认模板
+        await this.createDefaultTemplateFiles();
+        await this.loadUserTemplates();
         return;
       }
 
-      // 加载用户模板
+      // 总是补齐缺省模板（不会覆盖已有文件）
+      await this.createDefaultTemplateFiles();
+      // 加载用户模板（仅以文件夹内容为准）
       await this.loadUserTemplates();
+      // 若依然为空（极端情况），退回到内置模板以保证可用
+      if (this.templates.size === 0) {
+        for (const [id, template] of this.builtinTemplates) {
+          this.templates.set(id, { ...template });
+        }
+      }
     } catch (error) {
       console.error('Failed to load templates:', error);
+      // 失败时至少提供内置模板以保底
+      for (const [id, template] of this.builtinTemplates) {
+        this.templates.set(id, { ...template });
+      }
     }
   }
 
   /**
    * 创建示例模板文件
    */
-  private async createExampleTemplates(): Promise<void> {
-    const exampleTemplate = `---
-id: custom.example
-title: 自定义示例
-description: 这是一个自定义模板示例
-category: other
-featured: false
-tags: [示例, 自定义]
----
+  private async createDefaultTemplateFiles(): Promise<void> {
+    const files: { name: string; content: string }[] = [
+      {
+        name: 'summarize.md',
+        content: `# 总结要点\n\n基于以下内容提炼5条要点：每条不超过30字，保留关键数据。\n\n【原文】\n{{context}}`
+      },
+      {
+        name: 'polish.md',
+        content: `# 中文润色\n\n在不改变事实与语义的前提下，优化表达与结构，保留 Markdown、链接与代码块。\n\n【原文】\n{{context}}`
+      },
+      {
+        name: 'translate.md',
+        content: `# 中英互译\n\n将以下内容翻译为英文，输出为双语对照：\n\n【原文】\n{{context}}`
+      },
+      {
+        name: 'example.md',
+        content: `# example\n\n这是一个自定义模板示例。\n\n- 变量 {{context}}: 若选中文本则为所选内容，否则为当前文件全文。\n- 你可以在此文件中直接编写提示词正文，无需 YAML。\n- 文件第一行的一级标题将作为菜单显示名称。\n\n【输入】\n{{context}}\n\n【处理说明】\n请根据上述内容进行处理...`
+      }
+    ];
 
-这是一个自定义模板示例。你可以：
-
-1. 使用 {{context}} 变量插入选中文本
-2. 在 frontmatter 中配置模板属性
-3. 支持 Markdown 格式
-
-【输入内容】
-{{context}}
-
-【处理说明】
-请根据上述内容进行处理...`;
-
-    try {
-      await this.app.vault.create(
-        `${this.templateFolder}/example.md`,
-        exampleTemplate
-      );
-    } catch (error) {
-      console.error('Failed to create example template:', error);
+    for (const f of files) {
+      try {
+        const path = `${this.templateFolder}/${f.name}`.replace(/\/+/g, '/');
+        if (!this.app.vault.getAbstractFileByPath(path)) {
+          await this.app.vault.create(path, f.content);
+        }
+      } catch (e) {
+        console.error('Failed to create default template file:', f.name, e);
+      }
     }
   }
 
@@ -194,15 +201,16 @@ tags: [示例, 自定义]
     const frontmatterMatch = content.match(/^---\n(.*?)\n---\n([\s\S]*)$/);
     
     if (!frontmatterMatch) {
-      // 没有frontmatter，使用文件名作为ID和标题
+      // 无 YAML：尝试首行一级标题作为标题
+      const lines = content.split(/\r?\n/);
+      let title = file.basename;
+      let body = content.trim();
+      if (lines[0]?.startsWith('# ')) {
+        title = lines[0].replace(/^#\s+/, '').trim();
+        body = lines.slice(1).join('\n').trim();
+      }
       const id = file.basename;
-      return {
-        id,
-        title: id,
-        category: 'other',
-        content: content.trim(),
-        sourcePath: file.path
-      };
+      return { id, title, category: 'other', content: body, sourcePath: file.path };
     }
 
     try {
@@ -356,5 +364,12 @@ tags: [示例, 自定义]
       user,
       categories
     };
+  }
+
+  /** 规范化路径：去除首尾斜杠 */
+  private normalizePath(p: string): string {
+    const s = (p || '').trim();
+    if (!s) return '_ai/prompts';
+    return s.replace(/^\/+/, '').replace(/\/+$/, '');
   }
 }

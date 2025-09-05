@@ -322,15 +322,27 @@ export class AtAISettingsTab extends PluginSettingTab {
       cls: 'model-stats'
     });
     
-    // 简化的模型列表显示
-    if (models.length > 0) {
-      const modelListEl = containerEl.createEl('div', { cls: 'simple-model-list' });
+    // 交互式“已配置模型”列表（主页展示，不再隐藏）
+    const modelListEl = containerEl.createEl('div', { cls: 'simple-model-list' });
+    if (models.length === 0) {
+      modelListEl.createEl('div', { text: '尚未添加模型', cls: 'inactive-model' });
+    } else {
       models.forEach(model => {
-        const modelItem = modelListEl.createEl('div', { cls: 'simple-model-item' });
-        const status = model.isActive ? ' ✓' : '';
-        modelItem.createSpan({ 
-          text: `${model.name} (${model.providerName})${status}`,
-          cls: model.isActive ? 'active-model' : 'inactive-model'
+        const row = modelListEl.createEl('div', { cls: 'simple-model-item' });
+        const radio = row.createEl('input', { type: 'radio' });
+        radio.name = 'active-model';
+        radio.checked = !!model.isActive;
+        radio.addEventListener('change', () => {
+          const next = models.map(m => ({ ...m, isActive: m.id === model.id }));
+          this.updateModelSettings(next, model.id);
+        });
+        row.createSpan({ text: ` ${model.modelId} (${model.providerName})`, cls: model.isActive ? 'active-model' : 'inactive-model' });
+        // 删除按钮
+        const del = row.createEl('button', { text: '删除', cls: 'keyword-remove' });
+        del.addEventListener('click', () => {
+          const next = models.filter(m => m.id !== model.id);
+          const activeId = next.find(m => m.isActive)?.id || next[0]?.id || null;
+          this.updateModelSettings(next.map(m => ({ ...m, isActive: m.id === activeId })), activeId);
         });
       });
     }
@@ -338,7 +350,7 @@ export class AtAISettingsTab extends PluginSettingTab {
     // 模型管理按钮
     new Setting(containerEl)
       .setName('模型管理')
-      .setDesc('添加、编辑或删除AI模型配置')
+      .setDesc('添加、编辑或删除AI模型配置（添加后自动保存）')
       .addButton(button => {
         button
           .setButtonText('打开模型管理器')
@@ -389,10 +401,11 @@ export class AtAISettingsTab extends PluginSettingTab {
       .setName(t('settings.template.folder'))
       .setDesc(t('settings.template.folder.desc'))
       .addText(text => {
-        text.setPlaceholder('/_ai/prompts/')
+        text.setPlaceholder('_ai/prompts')
           .setValue(this.plugin.settings.templateFolder)
           .onChange(async (value) => {
-            await this.plugin.updateSettings({ templateFolder: value || '/_ai/prompts/' });
+            const normalized = (value || '_ai/prompts').replace(/^\/+/, '').replace(/\/+$/, '');
+            await this.plugin.updateSettings({ templateFolder: normalized });
           });
       });
 
