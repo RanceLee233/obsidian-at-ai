@@ -1,0 +1,810 @@
+/* @AI Plugin Styles */
+
+/* Modal 基础样式 */
+.modal-title {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: var(--text-normal);
+}
+
+/* 搜索框样式 */
+.search-container {
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 1rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+/* 分类标签样式 */
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.tab, .tab-active {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  background: var(--background-modifier-hover);
+}
+
+.tab-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+/* 模板列表样式 */
+.template-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.template-card {
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-card:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
+}
+
+.template-card.selected {
+  background: var(--background-modifier-cover);
+  border-color: var(--interactive-accent);
+}
+
+.template-title {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 0.3rem;
+  color: var(--text-normal);
+}
+
+.template-description {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.template-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.template-tag {
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 0.8em;
+}
+
+.empty-message {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
+  font-style: italic;
+}
+
+/* 底部工具栏样式 */
+.bottom-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.provider-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.provider-container label {
+  font-size: 0.9rem;
+  color: var(--text-normal);
+  white-space: nowrap;
+}
+
+.provider-select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 0.9rem;
+}
+
+.button-container {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.execute-btn, .cancel-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  transition: all 0.2s;
+}
+
+.execute-btn {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.execute-btn:hover:not(:disabled) {
+  background: var(--interactive-accent-hover);
+}
+
+.execute-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.cancel-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 设置页面样式 */
+.keywords-container {
+  margin-bottom: 1rem;
+}
+
+.keyword-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  margin-bottom: 0.3rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+}
+
+.keyword-text {
+  font-family: var(--font-monospace);
+  background: var(--background-modifier-border);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  color: var(--text-normal);
+}
+
+.keyword-remove {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 3px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.keyword-remove:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.providers-container {
+  margin-top: 1rem;
+}
+
+.provider-item {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+}
+
+.provider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.provider-header h3 {
+  margin: 0;
+  color: var(--text-normal);
+}
+
+.provider-details {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.provider-details.collapsed {
+  max-height: 0;
+}
+
+.provider-details.expanded {
+  max-height: 1000px;
+}
+
+.provider-stats, .template-stats, .model-stats {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  background: var(--background-modifier-border);
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+}
+
+/* 简单模型列表样式 */
+.simple-model-list {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  background: var(--background-modifier-border);
+  border-radius: 4px;
+}
+
+.simple-model-item {
+  padding: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.active-model {
+  color: var(--text-accent);
+  font-weight: 600;
+}
+
+.inactive-model {
+  color: var(--text-muted);
+}
+
+.current-model-info {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: var(--background-modifier-success);
+  border-radius: 4px;
+  color: var(--text-normal);
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+  .bottom-toolbar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .provider-container {
+    order: 1;
+  }
+  
+  .button-container {
+    order: 2;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .category-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* 滚动条样式 */
+.template-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.template-list::-webkit-scrollbar-track {
+  background: var(--background-primary);
+}
+
+.template-list::-webkit-scrollbar-thumb {
+  background: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
+.template-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* =============================================
+   模型管理器专用样式
+   ============================================= */
+
+/* 模型管理器主容器 */
+.at-ai-model-manager {
+  padding: 20px;
+  max-width: 900px;
+  width: 90vw;
+  min-width: 700px;
+}
+
+.at-ai-model-manager h2 {
+  text-align: center;
+  margin-bottom: 24px;
+  font-size: 1.5em;
+  color: var(--text-normal);
+}
+
+/* 模型列表容器 */
+.model-list-container {
+  margin-bottom: 20px;
+}
+
+/* 添加模型按钮 */
+.add-model-container {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.add-model-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* 模型列表表头 - Copilot风格 */
+.model-list-header {
+  display: grid;
+  grid-template-columns: 3fr 1.2fr 80px 80px;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.header-model { justify-self: start; }
+.header-provider { justify-self: start; }
+.header-active { justify-self: center; }
+.header-actions { justify-self: end; }
+
+/* 模型列表 - Copilot风格 */
+.model-list {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.no-models-message {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  background: var(--background-primary);
+}
+
+/* 模型行 - Copilot风格 */
+.model-row {
+  display: grid;
+  grid-template-columns: 3fr 1.2fr 80px 80px;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  align-items: center;
+  transition: all 0.15s ease;
+  min-height: 44px;
+}
+
+.model-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.model-row.disabled {
+  opacity: 0.5;
+  background: var(--background-secondary);
+}
+
+.model-row:last-child {
+  border-bottom: none;
+}
+
+/* 模型信息列 - Copilot风格 */
+.model-info {
+  justify-self: start;
+  min-width: 0;
+}
+
+.model-name {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-normal);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-id {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 提供商列 - Copilot风格 */
+.model-provider {
+  justify-self: start;
+  text-align: left;
+  min-width: 0;
+}
+
+.provider-name {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 激活状态列 */
+.model-active {
+  justify-self: center;
+  text-align: center;
+}
+
+.model-active input[type="radio"] {
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
+/* 操作按钮列 - Copilot风格 */
+.model-actions {
+  justify-self: end;
+  display: flex;
+  gap: 4px;
+}
+
+.model-action-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.model-action-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.model-action-btn.delete:hover {
+  background: var(--background-modifier-error);
+  color: var(--text-error);
+}
+
+/* 模态框底部 */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 20px;
+}
+
+.modal-footer button {
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* =============================================
+   添加模型模态框样式
+   ============================================= */
+
+.add-model-modal {
+  padding: 20px;
+  max-width: 700px;
+  width: 85vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.add-model-modal h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--text-normal);
+}
+
+/* 标签页 */
+.tab-container {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.tab-container .tab-button {
+  flex: 1;
+  max-width: 150px;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.tab-button.active {
+  color: var(--interactive-accent);
+  border-bottom-color: var(--interactive-accent);
+  background: transparent;
+}
+
+/* 标签页内容 */
+.tab-content {
+  min-height: 300px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 预设模型分类 */
+.preset-category {
+  margin-bottom: 24px;
+}
+
+.preset-category h4 {
+  margin-bottom: 12px;
+  color: var(--text-normal);
+  font-size: 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 4px;
+}
+
+/* 预设模型项目 */
+.preset-model-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  transition: all 0.2s;
+}
+
+.preset-model-item:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--text-muted);
+}
+
+.preset-info {
+  flex: 1;
+}
+
+.preset-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-normal);
+  margin-bottom: 4px;
+}
+
+.preset-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.preset-add-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* 自定义模型表单 */
+.custom-model-form {
+  padding: 0 4px;
+}
+
+.custom-model-form .setting-item {
+  border: none !important;
+  padding: 8px 0 !important;
+}
+
+.form-buttons {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.form-buttons button {
+  padding: 10px 20px;
+  margin: 0 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 快速配置样式 */
+.provider-quick-config {
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+}
+
+.provider-quick-config h4 {
+  margin-bottom: 12px;
+  color: var(--text-normal);
+  font-size: 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 4px;
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.quick-model-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.quick-model-btn:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+
+/* =============================================
+   编辑模型模态框样式
+   ============================================= */
+
+.edit-model-modal {
+  padding: 20px;
+  max-width: 500px;
+  width: 60vw;
+}
+
+.edit-model-modal h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--text-normal);
+}
+
+.edit-model-form {
+  padding: 0 4px;
+}
+
+.edit-model-form .setting-item {
+  border: none !important;
+  padding: 8px 0 !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 900px) {
+  .at-ai-model-manager {
+    width: 95vw;
+    padding: 16px;
+    min-width: unset;
+  }
+  
+  .model-list-header,
+  .model-row {
+    grid-template-columns: 2fr 1fr 70px 70px;
+    gap: 8px;
+  }
+  
+  .add-model-modal,
+  .edit-model-modal {
+    width: 90vw;
+    padding: 16px;
+  }
+  
+  .tab-content {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 600px) {
+  .model-list-header,
+  .model-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .model-list-header {
+    display: none;
+  }
+  
+  .model-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .model-info,
+  .model-provider,
+  .model-active,
+  .model-actions {
+    justify-self: stretch;
+    width: 100%;
+  }
+  
+  .model-active,
+  .model-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+}

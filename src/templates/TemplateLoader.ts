@@ -1,0 +1,360 @@
+import { App, TFile, parseYaml } from 'obsidian';
+import { Template, ProcessContext } from '../types';
+
+export class TemplateLoader {
+  private app: App;
+  private templateFolder: string;
+  private templates = new Map<string, Template>();
+  private builtinTemplates = new Map<string, Template>();
+
+  constructor(app: App, templateFolder: string) {
+    this.app = app;
+    this.templateFolder = templateFolder;
+    this.initBuiltinTemplates();
+  }
+
+  /**
+   * 初始化内置模板
+   */
+  private initBuiltinTemplates(): void {
+    const builtinTemplates: Template[] = [
+      {
+        id: 'polish.cn',
+        title: '中文润色',
+        description: '优化表达与结构，保留术语与格式',
+        category: 'rewrite',
+        featured: true,
+        content: `目标：在不改变事实与语义的前提下，优化以下中文内容的表达与结构。
+- 保留 Markdown、链接与代码块；不新增事实
+- 风格：专业稳健；语气：客观克制
+
+【原文】
+{{context}}`
+      },
+      {
+        id: 'continue.cn',
+        title: '自然续写',
+        description: '承接原文语气与节奏继续写作',
+        category: 'continue',
+        featured: true,
+        content: `请以与原文相同的语气与节奏，续写约300字的自然段。
+- 连贯承接，不另起新话题；避免复述已有内容
+
+【原文】
+{{context}}`
+      },
+      {
+        id: 'summarize.cn',
+        title: '要点总结',
+        description: '提炼关键要点，保留重要数据',
+        category: 'summarize',
+        featured: true,
+        content: `基于以下内容提炼5条要点：
+- 每条≤30字；保留关键数据；未知写"（不确定）"
+
+【原文】
+{{context}}`
+      },
+      {
+        id: 'translate.cn',
+        title: '中英互译',
+        description: '准确翻译并提供双语对照',
+        category: 'translate',
+        featured: true,
+        content: `将以下内容翻译为英文，输出双语对照表格：
+
+| 中文 | English |
+|------|---------|
+
+【原文】
+{{context}}`
+      },
+      {
+        id: 'explain.code',
+        title: '代码解释',
+        description: '解释代码功能和实现逻辑',
+        category: 'code',
+        content: `请解释以下代码的功能和实现逻辑：
+- 主要功能是什么
+- 关键算法或逻辑
+- 使用的技术栈或库
+- 可能的改进建议
+
+【代码】
+{{context}}`
+      }
+    ];
+
+    for (const template of builtinTemplates) {
+      this.builtinTemplates.set(template.id, template);
+    }
+  }
+
+  /**
+   * 设置模板文件夹
+   */
+  setTemplateFolder(folder: string): void {
+    this.templateFolder = folder;
+  }
+
+  /**
+   * 加载所有模板
+   */
+  async loadTemplates(): Promise<void> {
+    // 清除现有用户模板
+    this.templates.clear();
+
+    // 先添加内置模板
+    for (const [id, template] of this.builtinTemplates) {
+      this.templates.set(id, { ...template });
+    }
+
+    try {
+      // 确保模板文件夹存在
+      const folder = this.app.vault.getAbstractFileByPath(this.templateFolder);
+      if (!folder) {
+        // 创建模板文件夹
+        await this.app.vault.createFolder(this.templateFolder);
+        // 创建示例模板文件
+        await this.createExampleTemplates();
+        return;
+      }
+
+      // 加载用户模板
+      await this.loadUserTemplates();
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+    }
+  }
+
+  /**
+   * 创建示例模板文件
+   */
+  private async createExampleTemplates(): Promise<void> {
+    const exampleTemplate = `---
+id: custom.example
+title: 自定义示例
+description: 这是一个自定义模板示例
+category: other
+featured: false
+tags: [示例, 自定义]
+---
+
+这是一个自定义模板示例。你可以：
+
+1. 使用 {{context}} 变量插入选中文本
+2. 在 frontmatter 中配置模板属性
+3. 支持 Markdown 格式
+
+【输入内容】
+{{context}}
+
+【处理说明】
+请根据上述内容进行处理...`;
+
+    try {
+      await this.app.vault.create(
+        `${this.templateFolder}/example.md`,
+        exampleTemplate
+      );
+    } catch (error) {
+      console.error('Failed to create example template:', error);
+    }
+  }
+
+  /**
+   * 加载用户模板
+   */
+  private async loadUserTemplates(): Promise<void> {
+    const files = this.app.vault.getFiles().filter(file => 
+      file.path.startsWith(this.templateFolder) && 
+      file.extension === 'md'
+    );
+
+    for (const file of files) {
+      try {
+        const template = await this.parseTemplateFile(file);
+        if (template) {
+          // 用户模板覆盖同名内置模板
+          this.templates.set(template.id, template);
+        }
+      } catch (error) {
+        console.error(`Failed to parse template file ${file.path}:`, error);
+      }
+    }
+  }
+
+  /**
+   * 解析模板文件
+   */
+  private async parseTemplateFile(file: TFile): Promise<Template | null> {
+    const content = await this.app.vault.read(file);
+    
+    // 检查是否有frontmatter
+    const frontmatterMatch = content.match(/^---\n(.*?)\n---\n([\s\S]*)$/);
+    
+    if (!frontmatterMatch) {
+      // 没有frontmatter，使用文件名作为ID和标题
+      const id = file.basename;
+      return {
+        id,
+        title: id,
+        category: 'other',
+        content: content.trim(),
+        sourcePath: file.path
+      };
+    }
+
+    try {
+      const frontmatter = parseYaml(frontmatterMatch[1]);
+      const body = frontmatterMatch[2].trim();
+
+      if (!frontmatter.id) {
+        frontmatter.id = file.basename;
+      }
+
+      if (!frontmatter.title) {
+        frontmatter.title = frontmatter.id;
+      }
+
+      if (!frontmatter.category) {
+        frontmatter.category = 'other';
+      }
+
+      return {
+        ...frontmatter,
+        content: body,
+        sourcePath: file.path
+      } as Template;
+
+    } catch (error) {
+      console.error(`Failed to parse frontmatter in ${file.path}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 获取所有模板
+   */
+  getTemplates(): Template[] {
+    return Array.from(this.templates.values());
+  }
+
+  /**
+   * 根据ID获取模板
+   */
+  getTemplate(id: string): Template | undefined {
+    return this.templates.get(id);
+  }
+
+  /**
+   * 根据分类获取模板
+   */
+  getTemplatesByCategory(category: string): Template[] {
+    return Array.from(this.templates.values())
+      .filter(template => template.category === category);
+  }
+
+  /**
+   * 获取推荐模板
+   */
+  getFeaturedTemplates(): Template[] {
+    return Array.from(this.templates.values())
+      .filter(template => template.featured === true);
+  }
+
+  /**
+   * 搜索模板
+   */
+  searchTemplates(query: string): Template[] {
+    const searchTerm = query.toLowerCase().trim();
+    if (!searchTerm) {
+      return this.getTemplates();
+    }
+
+    return Array.from(this.templates.values())
+      .filter(template => 
+        template.title.toLowerCase().includes(searchTerm) ||
+        template.description?.toLowerCase().includes(searchTerm) ||
+        template.tags?.some(tag => tag.toLowerCase().includes(searchTerm)) ||
+        template.category.toLowerCase().includes(searchTerm)
+      );
+  }
+
+  /**
+   * 渲染模板
+   */
+  renderTemplate(template: Template, context: ProcessContext): string {
+    let rendered = template.content;
+
+    // 替换基础变量
+    const variables: Record<string, string> = {
+      context: context.selectedText || context.fullText,
+      selectedText: context.selectedText,
+      fullText: context.fullText,
+      noteName: context.noteName,
+      notePath: context.notePath,
+      today: new Date().toISOString().split('T')[0],
+      now: new Date().toLocaleString(),
+      time: new Date().toLocaleTimeString(),
+      cursorPosition: context.cursorPosition.toString()
+    };
+
+    // 添加frontmatter变量
+    if (context.frontmatter) {
+      for (const [key, value] of Object.entries(context.frontmatter)) {
+        if (typeof value === 'string' || typeof value === 'number') {
+          variables[`frontmatter.${key}`] = value.toString();
+        }
+      }
+    }
+
+    // 替换所有变量
+    for (const [key, value] of Object.entries(variables)) {
+      const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+      rendered = rendered.replace(regex, value || '');
+    }
+
+    return rendered;
+  }
+
+  /**
+   * 获取所有分类
+   */
+  getCategories(): string[] {
+    const categories = new Set<string>();
+    for (const template of this.templates.values()) {
+      categories.add(template.category);
+    }
+    return Array.from(categories).sort();
+  }
+
+  /**
+   * 重新加载模板
+   */
+  async reload(): Promise<void> {
+    await this.loadTemplates();
+  }
+
+  /**
+   * 获取模板统计信息
+   */
+  getStats(): {
+    total: number;
+    builtin: number;
+    user: number;
+    categories: number;
+  } {
+    const templates = this.getTemplates();
+    const builtin = templates.filter(t => !t.sourcePath).length;
+    const user = templates.filter(t => t.sourcePath).length;
+    const categories = this.getCategories().length;
+
+    return {
+      total: templates.length,
+      builtin,
+      user,
+      categories
+    };
+  }
+}
