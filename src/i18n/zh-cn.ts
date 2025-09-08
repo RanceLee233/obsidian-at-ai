@@ -40,6 +40,9 @@ export const zhCn = {
   'settings.language.auto': '自动检测',
   'settings.language.zh': '简体中文',
   'settings.language.en': 'English',
+  // 快速模式
+  'settings.quickmode': '快速模式',
+  'settings.quickmode.desc': '开启后，点击“插入到文档”会立即插入并自动关闭面板',
   
   // AI提供商设置
   'settings.providers': 'AI提供商',

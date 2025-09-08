@@ -352,6 +352,11 @@ export class AtAIModal extends Modal {
         const cursor = editor.getCursor();
         editor.replaceRange('\n\n' + this.lastOutput, cursor);
       }
+      // 快速模式：插入后自动关闭面板
+      const quickMode = (this.settings as any).quickMode;
+      if (quickMode) {
+        this.close();
+      }
     });
 
     const cancelBtn = buttonContainer.createEl('button', { text: t('ui.cancel'), cls: 'cancel-btn' });

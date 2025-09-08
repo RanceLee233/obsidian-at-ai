@@ -15,6 +15,8 @@ export interface PluginSettings {
   
   // 其他设置
   autoDetectLanguage: boolean;
+  // 快速模式：插入后自动关闭面板
+  quickMode?: boolean;
 }
 
 export interface AIProviderConfig {
@@ -378,5 +380,6 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   })),
   defaultProvider: 'openai',
   templateFolder: '/_ai/prompts/',
-  autoDetectLanguage: true
+  autoDetectLanguage: true,
+  quickMode: false
 };

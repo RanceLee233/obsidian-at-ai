@@ -40,6 +40,9 @@ export const en = {
   'settings.language.auto': 'Auto Detect',
   'settings.language.zh': '简体中文',
   'settings.language.en': 'English',
+  // Quick mode
+  'settings.quickmode': 'Quick Mode',
+  'settings.quickmode.desc': 'When enabled, clicking "Insert to Document" will insert immediately and close the panel',
   
   // AI provider settings
   'settings.providers': 'AI Providers',

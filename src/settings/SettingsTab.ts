@@ -61,6 +61,18 @@ export class AtAISettingsTab extends PluginSettingTab {
             }
           });
       });
+
+    // 快速模式：插入后自动关闭面板
+    new Setting(containerEl)
+      .setName(t('settings.quickmode'))
+      .setDesc(t('settings.quickmode.desc'))
+      .addToggle(toggle => {
+        toggle
+          .setValue(!!(this.plugin.settings as any).quickMode)
+          .onChange(async (value) => {
+            await this.plugin.updateSettings({ quickMode: value } as any);
+          });
+      });
   }
 
   private createTriggerSettings(): void {

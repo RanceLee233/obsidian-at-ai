@@ -53,6 +53,8 @@
 - ✅ **聊天布局调整**: 采用GPT风格，用户消息右侧，AI回复左侧
 - ✅ **分类精简**: 简化为"对话"和"常用"两个核心分类
 - ✅ **模板加载逻辑**: 空文件夹自动创建默认模板，已有内容保持原样
+- ✅ **官方审核提交**: 成功提交到 Obsidian 社区插件商店 (PR #7698)
+- ✅ **验证问题修复**: 解决插件ID、LICENSE、GitHub Release等验证问题
 
 ## 本地测试指南 / Local Testing Guide
 
@@ -189,6 +191,117 @@ temperature: 0.3
 - [ ] 模板社区分享
 - [ ] 插件 API 开放
 - [ ] 移动端优化
+
+## Obsidian 官方插件提交指南 / Official Plugin Submission Guide
+
+### 📝 提交前准备 Checklist
+
+#### 必需文件
+1. **manifest.json** - 插件配置文件
+   - ⚠️ `id` 不能包含 "obsidian" 字样
+   - ✅ 正确示例: `at-ai`, `my-plugin`
+   - ❌ 错误示例: `obsidian-at-ai`, `my-obsidian-plugin`
+   - `authorUrl` 必须指向作者 GitHub 个人主页，而非仓库地址
+   - `version` 必须符合语义化版本 (如 `1.0.0`)
+
+2. **LICENSE** - 开源许可证文件（必需）
+   - 推荐使用 MIT License
+   - 必须在项目根目录
+
+3. **README.md** - 项目说明文档
+   - 清晰的功能介绍
+   - 安装和使用说明
+   - 截图或演示（推荐）
+
+4. **构建产物**
+   - `main.js` - 编译后的插件代码
+   - `styles.css` - 插件样式（如有）
+
+#### GitHub Release 要求
+- 必须创建与 manifest.json 中版本号一致的 Release
+- Tag 格式: `1.0.0` (不要加 `v` 前缀)
+- Release 必须包含:
+  - `main.js`
+  - `manifest.json`
+  - `styles.css` (如有)
+
+### 🚀 提交流程
+
+#### 方法一：本地 Git 提交（推荐）
+```bash
+# 1. 克隆官方插件仓库
+git clone https://github.com/obsidianmd/obsidian-releases.git
+
+# 2. 创建新分支
+cd obsidian-releases
+git checkout -b add-your-plugin-name
+
+# 3. 编辑 community-plugins.json，添加插件信息
+# 按字母顺序插入：
+{
+    "id": "at-ai",
+    "name": "@AI",
+    "author": "RanceLee233",
+    "description": "Your plugin description",
+    "repo": "RanceLee233/obsidian-at-ai"
+}
+
+# 4. 提交并推送
+git add community-plugins.json
+git commit -m "Add @AI plugin"
+git push origin add-your-plugin-name
+
+# 5. 创建 Pull Request
+```
+
+#### 方法二：GitHub 网页提交
+1. 访问 https://github.com/obsidianmd/obsidian-releases
+2. 编辑 `community-plugins.json`
+3. 添加插件信息
+4. 创建 Pull Request
+
+### ⚠️ 常见验证错误及解决
+
+| 错误信息 | 原因 | 解决方案 |
+|----------|------|----------|
+| Plugin ID obsidian-at-ai contains "obsidian" | ID 包含禁用词 | 修改为不含 "obsidian" 的 ID |
+| No GitHub release found | 未创建 Release | 创建对应版本的 GitHub Release |
+| Missing LICENSE file | 缺少许可证 | 添加 LICENSE 文件到仓库根目录 |
+| authorUrl should point to author | URL 指向了仓库而非作者 | 修改为作者 GitHub 主页 |
+| manifest.json not found in release | Release 中缺少文件 | 重新创建包含所有必需文件的 Release |
+
+### 📋 GitHub CLI 快速创建 Release
+```bash
+# 安装 GitHub CLI (macOS)
+brew install gh
+
+# 认证
+gh auth login
+
+# 创建 Release
+gh release create 1.0.0 \
+  --title "Release 1.0.0" \
+  --notes "Initial release" \
+  main.js manifest.json styles.css
+```
+
+### 🔄 提交后流程
+1. **自动验证**: GitHub Actions 会自动验证你的提交
+2. **修复问题**: 如有错误，根据提示修复
+3. **等待审核**: Obsidian 团队会在 1-2 周内审核
+4. **发布上线**: 审核通过后，插件会出现在社区商店
+
+### 📌 重要提示
+- 提交 PR 后，机器人会自动验证
+- 验证通过不代表立即发布，需等待人工审核
+- 保持 GitHub Release 与 manifest 版本一致
+- 确保所有链接和文件路径正确
+- 插件 ID 一旦发布不可更改
+
+### 🔗 相关链接
+- [官方提交指南](https://github.com/obsidianmd/obsidian-releases#community-plugins)
+- [插件开发文档](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin)
+- [示例插件](https://github.com/obsidianmd/obsidian-sample-plugin)
 
 ## 贡献 / Contributing
 
