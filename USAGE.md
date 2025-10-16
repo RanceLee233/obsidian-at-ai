@@ -8,9 +8,11 @@
 
 ### 2. Configure API / 配置 API
 1. Open Settings → @AI Settings / 打开设置 → @AI 设置
-2. Choose a provider (OpenAI, Claude, etc.) / 选择提供商（OpenAI、Claude等）
-3. Add your API key / 添加 API 密钥
-4. Enable the provider / 启用提供商
+2. Click “模型管理”按钮以维护多个模型配置 / 通过“模型管理”按钮维护多个模型
+3. 在弹窗中选择 Provider、API 模式（Chat Completions 或 Responses） / 在弹窗中选择 Provider 与 API 模式（Chat Completions 或 Responses）
+4. Responses 模式下 Base URL 需指向根路径（例如 `https://crs.discoverlabs.ac.cn/openai/v1`，插件会自动追加 `/responses`）/ Responses 模式下 Base URL 填写根路径（例如 `https://crs.discoverlabs.ac.cn/openai/v1`，插件会自动拼接 `/responses`）
+5. 填写 API Key 并测试连接（Responses 会发起一次流式探针请求）/ 填写 API Key 并测试连接（Responses 会执行一次流式探针请求）
+5. 保存后即可与既有 DeepSeek 等配置共存 / 保存后即可与现有 DeepSeek 等配置共存
 
 ### 3. Start Using / 开始使用
 - Type `@ai ` (with space) in any note / 在任何笔记中输入 `@ai ` (带空格)

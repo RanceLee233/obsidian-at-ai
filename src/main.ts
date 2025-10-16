@@ -292,7 +292,22 @@ export default class AtAIPlugin extends Plugin {
    * 加载设置
    */
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const storedData = await this.loadData();
+    const mergedSettings: ExtendedPluginSettings = Object.assign({}, DEFAULT_SETTINGS, storedData);
+
+    mergedSettings.providers = (mergedSettings.providers || []).map(provider => ({
+      ...provider,
+      apiType: provider.apiType || 'chat_completions'
+    }));
+
+    if (mergedSettings.models && Array.isArray(mergedSettings.models)) {
+      mergedSettings.models = mergedSettings.models.map(model => ({
+        ...model,
+        apiType: model.apiType || 'chat_completions'
+      }));
+    }
+
+    this.settings = mergedSettings;
   }
 
   /**

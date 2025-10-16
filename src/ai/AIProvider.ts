@@ -1,3 +1,4 @@
+import { requestUrl } from 'obsidian';
 import { AIRequest, AIResponse } from '../types';
 
 export interface AIProvider {
@@ -26,10 +27,12 @@ export abstract class BaseAIProvider implements AIProvider {
   
   protected apiKey: string;
   protected baseUrl: string;
+  protected options: any;
   
-  constructor(apiKey: string, baseUrl: string) {
+  constructor(apiKey: string, baseUrl: string, options?: any) {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl;
+    this.options = options || {};
   }
 
   abstract sendRequest(request: AIRequest): Promise<AIResponse>;
@@ -48,26 +51,49 @@ export abstract class BaseAIProvider implements AIProvider {
     headers: Record<string, string> = {}
   ): Promise<Response> {
     const url = `${this.baseUrl.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`;
-    
-    const requestOptions: RequestInit = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers
-      },
+
+    const normalizedHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...headers
     };
 
-    if (body && method !== 'GET') {
-      requestOptions.body = JSON.stringify(body);
+    const requestBody = body && method !== 'GET' ? JSON.stringify(body) : undefined;
+
+    if (typeof requestUrl === 'function') {
+      const obsidianResponse = await requestUrl({
+        url,
+        method,
+        headers: normalizedHeaders,
+        body: requestBody
+      });
+
+      const headers = new Headers(obsidianResponse.headers || {});
+      const bodyInit = obsidianResponse.text !== undefined
+        ? obsidianResponse.text
+        : obsidianResponse.arrayBuffer;
+      const response = new Response(bodyInit, {
+        status: obsidianResponse.status,
+        headers
+      });
+
+      if (!response.ok) {
+        const errorText = await response.clone().text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      return response;
     }
 
-    const response = await fetch(url, requestOptions);
-    
+    const fetchOptions: RequestInit = {
+      method,
+      headers: normalizedHeaders,
+      body: requestBody
+    };
+
+    const response = await fetch(url, fetchOptions);
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
-
     return response;
   }
 

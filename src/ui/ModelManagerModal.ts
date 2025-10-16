@@ -1,5 +1,5 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
-import { AIModelConfig } from '../types';
+import { App, Modal, Setting, Notice, requestUrl } from 'obsidian';
+import { AIModelConfig, OpenAIAPIType } from '../types';
 import AtAIPlugin from '../main';
 import { t } from '../i18n';
 
@@ -228,13 +228,22 @@ class AddModelModal extends Modal {
       { name: '自定义', id: 'custom', baseUrl: '' }
     ];
 
-    const formData = {
+    const formData: {
+      modelId: string;
+      name: string;
+      provider: string;
+      providerName: string;
+      baseUrl: string;
+      apiKey: string;
+      apiType: OpenAIAPIType;
+    } = {
       modelId: '',
       name: '',
       provider: 'openai',
       providerName: 'OpenAI',
       baseUrl: 'https://api.openai.com/v1',
-      apiKey: ''
+      apiKey: '',
+      apiType: 'chat_completions'
     };
 
     new Setting(formEl)
@@ -261,6 +270,21 @@ class AddModelModal extends Modal {
         });
       });
 
+    const apiTypeOptions: { value: OpenAIAPIType; label: string }[] = [
+      { value: 'chat_completions', label: 'Chat Completions (/chat/completions)' },
+      { value: 'responses', label: 'Responses (/responses)' }
+    ];
+
+    new Setting(formEl)
+      .setName('API 模式')
+      .setDesc('选择使用传统 Chat Completions 还是最新 Responses 接口')
+      .addDropdown(drop => {
+        apiTypeOptions.forEach(opt => drop.addOption(opt.value, opt.label));
+        drop.setValue(formData.apiType).onChange(value => {
+          formData.apiType = (value as OpenAIAPIType) || 'chat_completions';
+        });
+      });
+
     let baseUrlInput: import('obsidian').TextComponent;
     new Setting(formEl)
       .setName('Base URL')
@@ -277,10 +301,14 @@ class AddModelModal extends Modal {
       testBtn.textContent = '测试中...';
       testBtn.setAttr('disabled', 'true');
       try {
-        const ok = await this.testConnection(formData.baseUrl, formData.apiKey);
-        new Notice(ok ? '连接成功' : '连接失败');
-      } catch (e) {
-        new Notice('连接失败');
+        const result = await this.testConnection(formData.baseUrl, formData.apiKey, formData.apiType, formData.modelId);
+        if (result.success) {
+          new Notice('连接成功');
+        } else {
+          new Notice(result.message ? `连接失败：${result.message}` : '连接失败');
+        }
+      } catch (e: any) {
+        new Notice(`连接失败：${e?.message || e || '未知错误'}`);
       } finally {
         testBtn.textContent = '测试连接';
         testBtn.removeAttribute('disabled');
@@ -303,22 +331,16 @@ class AddModelModal extends Modal {
         maxTokens: 2000,
         enabled: true,
         isActive: false,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        apiType: formData.apiType
       };
       this.onModelAdded(newModel);
       this.close();
     });
   }
 
-  private async testConnection(baseUrl: string, apiKey: string): Promise<boolean> {
-    try {
-      if (!baseUrl || !apiKey) return false;
-      const url = baseUrl.replace(/\/$/, '') + '/models';
-      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-      return res.ok;
-    } catch {
-      return false;
-    }
+  private async testConnection(baseUrl: string, apiKey: string, apiType: OpenAIAPIType = 'chat_completions', modelId?: string) {
+    return await testAPIConnection(baseUrl, apiKey, apiType, modelId);
   }
 
   // 预设/快速配置已取消，无需额外方法
@@ -336,7 +358,7 @@ class EditModelModal extends Modal {
 
   constructor(app: App, model: AIModelConfig, onModelUpdated: (model: AIModelConfig) => void) {
     super(app);
-    this.model = { ...model };
+    this.model = { ...model, apiType: model.apiType || 'chat_completions' };
     this.onModelUpdated = onModelUpdated;
   }
 
@@ -395,6 +417,22 @@ class EditModelModal extends Modal {
         });
       });
 
+    const apiTypeOptions: { value: OpenAIAPIType; label: string }[] = [
+      { value: 'chat_completions', label: 'Chat Completions (/chat/completions)' },
+      { value: 'responses', label: 'Responses (/responses)' }
+    ];
+
+    new Setting(formEl)
+      .setName('API 模式')
+      .setDesc('根据服务端支持选择不同接口')
+      .addDropdown(drop => {
+        apiTypeOptions.forEach(opt => drop.addOption(opt.value, opt.label));
+        drop.setValue(this.model.apiType || 'chat_completions')
+          .onChange(value => {
+            this.model.apiType = (value as OpenAIAPIType) || 'chat_completions';
+          });
+      });
+
     new Setting(formEl)
       .setName('Base URL')
       .addText(text => { baseUrlInput = text; text.setValue(this.model.baseUrl).onChange(v => this.model.baseUrl = v); });
@@ -430,20 +468,27 @@ class EditModelModal extends Modal {
     const testButton = document.querySelector('.mod-warning') as HTMLButtonElement;
     testButton.textContent = '测试中...';
     testButton.disabled = true;
-    
+
     try {
-      // 这里应该调用实际的API测试逻辑
-      // 暂时模拟测试成功
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      new Notice('连接测试成功！');
-      testButton.textContent = '连接成功';
-      setTimeout(() => {
-        testButton.textContent = '测试连接';
-        testButton.disabled = false;
-      }, 2000);
-    } catch (error) {
-      new Notice('连接测试失败');
+      const result = await testAPIConnection(this.model.baseUrl, this.model.apiKey, this.model.apiType || 'chat_completions', this.model.modelId);
+      if (result.success) {
+        new Notice('连接测试成功！');
+        testButton.textContent = '连接成功';
+        setTimeout(() => {
+          testButton.textContent = '测试连接';
+          testButton.disabled = false;
+        }, 2000);
+      } else {
+        const message = result.message ? `连接测试失败：${result.message}` : '连接测试失败';
+        new Notice(message);
+        testButton.textContent = '连接失败';
+        setTimeout(() => {
+          testButton.textContent = '测试连接';
+          testButton.disabled = false;
+        }, 2000);
+      }
+    } catch (error: any) {
+      new Notice(`连接测试失败：${error?.message || error || '未知错误'}`);
       testButton.textContent = '连接失败';
       setTimeout(() => {
         testButton.textContent = '测试连接';
@@ -455,5 +500,50 @@ class EditModelModal extends Modal {
   onClose() {
     const { contentEl } = this;
     contentEl.empty();
+  }
+}
+
+async function testAPIConnection(baseUrl: string, apiKey: string, apiType: OpenAIAPIType = 'chat_completions', modelId?: string): Promise<{ success: boolean; message?: string }> {
+  try {
+    if (!baseUrl || !apiKey) return { success: false, message: '缺少 Base URL 或 API Key' };
+    const normalized = (baseUrl || '').replace(/\/$/, '');
+
+    if (apiType === 'responses') {
+      const response = await requestUrl({
+        url: `${normalized}/responses`,
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
+        },
+        body: JSON.stringify({
+          model: modelId && modelId.trim() ? modelId.trim() : 'gpt-4o-mini',
+          input: [{ role: 'user', content: [{ type: 'input_text', text: 'ping' }] }],
+          stream: false
+        })
+      });
+
+      if (response.status >= 200 && response.status < 300) {
+        return { success: true };
+      }
+
+      console.warn('[@AI Responses Test] HTTP', response.status, response.text);
+      return { success: false, message: response.text ? `${response.status}: ${response.text.slice(0, 200)}` : `HTTP ${response.status}` };
+    }
+
+    const response = await requestUrl({
+      url: `${normalized}/models`,
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+      return { success: true };
+    }
+
+    return { success: false, message: `HTTP ${response.status}` };
+  } catch (error: any) {
+    console.warn('[@AI Responses Test] error', error);
+    return { success: false, message: error?.message || String(error) };
   }
 }

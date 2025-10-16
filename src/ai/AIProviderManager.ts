@@ -15,19 +15,24 @@ export class AIProviderManager {
 
     // 添加新的提供商配置
     for (const config of configs) {
-      this.configs.set(config.id, config);
+      const normalizedConfig: AIProviderConfig = {
+        ...config,
+        apiType: config.apiType || 'chat_completions'
+      };
+      this.configs.set(config.id, normalizedConfig);
       
       // 只为启用且有API密钥的提供商创建实例
-      if (config.enabled && config.apiKey.trim()) {
+      if (normalizedConfig.enabled && normalizedConfig.apiKey.trim()) {
         try {
           const provider = AIProviderFactory.createProvider(
-            config.id,
-            config.apiKey,
-            config.baseUrl
+            normalizedConfig.id,
+            normalizedConfig.apiKey,
+            normalizedConfig.baseUrl,
+            normalizedConfig
           );
-          this.providers.set(config.id, provider);
+          this.providers.set(normalizedConfig.id, provider);
         } catch (error) {
-          console.error(`Failed to create provider ${config.id}:`, error);
+          console.error(`Failed to create provider ${normalizedConfig.id}:`, error);
         }
       }
     }
@@ -93,7 +98,11 @@ export class AIProviderManager {
       throw new Error('Model missing apiKey or baseUrl');
     }
     // 临时创建 provider 实例
-    const provider = AIProviderFactory.createProvider(model.provider, model.apiKey, model.baseUrl);
+    const options = {
+      ...model,
+      apiType: model.apiType || 'chat_completions'
+    };
+    const provider = AIProviderFactory.createProvider(options.provider, options.apiKey, options.baseUrl, options);
     const finalRequest: AIRequest = {
       ...request,
       model: request.model || model.modelId

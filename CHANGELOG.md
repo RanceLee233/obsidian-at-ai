@@ -2,6 +2,13 @@
 
 All notable changes to the @AI plugin will be documented in this file.
 
+## [1.0.2] - 2025-02-XX
+
+### Added
+- 支持在模型管理器中选择 OpenAI Responses API 模式，兼容 `/v1/responses` 端点。
+- 新增 Responses 流式解析，自动拼接 `/responses` 并获取输出。
+- 允许同时保留 DeepSeek 配置并新增基于 Responses 的模型。
+
 ## [1.0.0] - 2025-01-XX
 
 ### Added

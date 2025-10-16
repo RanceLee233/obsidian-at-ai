@@ -15,6 +15,8 @@ This repository contains an Obsidian community plugin written in TypeScript with
 ## Build, Test, and Development Commands
 - `npm run build` — type-checks then bundles to `main.js` via esbuild.
 - `./install-local.sh "/path/to/Vault"` — installs `main.js`, `manifest.json`, `styles.css` into the target vault.
+- 项目默认同步到实际使用的笔记库：`./install-local.sh "/Users/lijiong/Library/Mobile Documents/iCloud~md~obsidian/Documents/OBSIDIAN 仓库"`（运行后会覆盖 `/Users/lijiong/Library/Mobile Documents/iCloud~md~obsidian/Documents/OBSIDIAN 仓库/.obsidian/plugins/obsidian-at-ai/` 中的构建文件）。
+- Local live vault sync: copy `main.js`, `manifest.json`, and `styles.css` into `/Users/lijiong/Library/Mobile Documents/iCloud~md~obsidian/Documents/OBSIDIAN 仓库/.obsidian/plugins/obsidian-at-ai/` after each build (already automated in this workspace).
 - Manual reload: toggle the plugin in Obsidian or restart the app.
 
 Example:

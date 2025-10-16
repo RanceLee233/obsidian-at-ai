@@ -19,6 +19,8 @@ export interface PluginSettings {
   quickMode?: boolean;
 }
 
+export type OpenAIAPIType = 'chat_completions' | 'responses';
+
 export interface AIProviderConfig {
   id: string;
   name: string;
@@ -31,6 +33,7 @@ export interface AIProviderConfig {
   defaultModel?: string;
   temperature?: number;
   maxTokens?: number;
+  apiType?: OpenAIAPIType;
 }
 
 export interface ModelConfig {
@@ -97,6 +100,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'gpt-4o', name: 'gpt-4o', displayName: 'GPT-4o' },
       { id: 'gpt-4o-mini', name: 'gpt-4o-mini', displayName: 'GPT-4o Mini' },
@@ -113,6 +117,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'Anthropic Claude',
     baseUrl: 'https://api.anthropic.com',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'claude-3-5-sonnet-20241022', name: 'claude-3-5-sonnet-20241022', displayName: 'Claude 3.5 Sonnet' },
       { id: 'claude-3-haiku-20240307', name: 'claude-3-haiku-20240307', displayName: 'Claude 3 Haiku' }
@@ -127,6 +132,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'anthropic/claude-3.5-sonnet', name: 'anthropic/claude-3.5-sonnet', displayName: 'Claude 3.5 Sonnet' },
       { id: 'openai/gpt-4o', name: 'openai/gpt-4o', displayName: 'GPT-4o' },
@@ -142,6 +148,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com/v1',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'deepseek-chat', name: 'deepseek-chat', displayName: 'DeepSeek Chat' },
       { id: 'deepseek-coder', name: 'deepseek-coder', displayName: 'DeepSeek Coder' }
@@ -156,6 +163,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'Kimi (Moonshot)',
     baseUrl: 'https://api.moonshot.cn/v1',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'moonshot-v1-8k', name: 'moonshot-v1-8k', displayName: 'Moonshot v1 8K' },
       { id: 'moonshot-v1-32k', name: 'moonshot-v1-32k', displayName: 'Moonshot v1 32K' },
@@ -171,6 +179,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'GLM (智谱)',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'glm-4', name: 'glm-4', displayName: 'GLM-4' },
       { id: 'glm-4-plus', name: 'glm-4-plus', displayName: 'GLM-4 Plus' },
@@ -186,6 +195,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'Google Gemini',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'gemini-1.5-pro', name: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro' },
       { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash', displayName: 'Gemini 1.5 Flash' },
@@ -201,6 +211,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'xAI Grok',
     baseUrl: 'https://api.x.ai/v1',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'grok-beta', name: 'grok-beta', displayName: 'Grok Beta' },
       { id: 'grok-vision-beta', name: 'grok-vision-beta', displayName: 'Grok Vision Beta' }
@@ -215,6 +226,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'Ollama (本地)',
     baseUrl: 'http://localhost:11434/v1',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [
       { id: 'llama3.2', name: 'llama3.2', displayName: 'Llama 3.2' },
       { id: 'qwen2.5', name: 'qwen2.5', displayName: 'Qwen 2.5' },
@@ -230,6 +242,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: 'LM Studio (本地)',
     baseUrl: 'http://localhost:1234/v1',
     isBuiltIn: true,
+    apiType: 'chat_completions',
     models: [],
     defaultModel: '',
     temperature: 0.7,
@@ -241,6 +254,7 @@ export const BUILTIN_PROVIDERS: Omit<AIProviderConfig, 'apiKey' | 'enabled'>[] =
     displayName: '自定义提供商',
     baseUrl: '',
     isBuiltIn: false,
+    apiType: 'chat_completions',
     models: [],
     defaultModel: '',
     temperature: 0.7,
@@ -262,6 +276,7 @@ export interface AIModelConfig {
   enabled: boolean;            // 是否启用
   isActive: boolean;           // 是否为当前选中模型 (单选)
   createdAt: number;           // 创建时间戳
+  apiType?: OpenAIAPIType;     // OpenAI兼容接口类型
 }
 
 // 预设模型模板
